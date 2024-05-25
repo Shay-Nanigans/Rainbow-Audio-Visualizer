@@ -1,3 +1,6 @@
 testthings
 output/*
 temp/*
+compile.bat
+*.csv
+

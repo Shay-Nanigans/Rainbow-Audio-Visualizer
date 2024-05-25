@@ -300,8 +300,9 @@ extern "C"
 
     API void AudioFormatter(float *output, float *input, float *freq, float *time, int framecount, int timeCount, int freqCount, int framerate)
     {
-        int freqEnds[10] = {32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 24576};
+        int freqEnds[10] = {32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384};
         int freqPlace = 0;
+        int counters[10] = {0,0,0,0,0,0,0,0,0,0};
         int counter = 0;
 
         int t = 0;
@@ -312,17 +313,39 @@ extern "C"
             }
             for (int f = 0; f < freqCount; f++) //iterates through the frequency of the input array
             {
-                if(freq[f]<freqEnds[freqPlace]){ //iterates through the frequency of the output array
-                    counter++;
-                }else{
-                    output[frame*10 + freqPlace] = output[frame*10 + freqPlace]/counter;
-                    counter=0;
+                if (freqEnds[freqPlace]<freq[f]){
                     freqPlace++;
                 }
-                output[frame*10 + freqPlace] =  output[frame*10 +freqPlace] + input[t*freqCount+f];
+
+                if (freq[f]<freqEnds[0]){ //if below 32hz, dump all into bottom bin
+                    output[frame*10] =  output[frame*10] + input[t*freqCount+f];
+                    counters[0]++;
+
+                }else if (freq[f]>freqEnds[9]){ //if above 16khz, dump all into top bin
+                    output[frame*10 + 9] =  output[frame*10 +9] + input[t*freqCount+f];
+                    counters[9]++;
+
+                }else{ // otherwise, split weight into two adjancent bins
+                    float weightsplit = 1 - ((freq[f] - freqEnds[freqPlace])/(freqEnds[freqPlace+1]- freqEnds[freqPlace]));
+                    output[frame*10 + freqPlace] =  output[frame*10 +freqPlace] + (input[t*freqCount+f]*weightsplit);
+                    counters[freqPlace]= counters[freqPlace] + weightsplit;
+                    output[frame*10 + freqPlace+1] =  output[frame*10 +freqPlace+1] + (input[t*freqCount+f]*(1-weightsplit));
+                    counters[freqPlace+1]=counters[freqPlace+1] +(1-weightsplit);
+                }
+                
+
             }
-            output[frame*10 + freqPlace] = output[frame*10 + freqPlace]/counter;
-            counter=0;
+
+            for(int i = 0;i<10;i++){
+                if(counters[i]>0){
+                    output[frame*10 + i] = output[frame*10 + i]/counters[i];
+                }
+                counters[i]=0;
+                if (output[frame*10 + i]<0){
+                    output[frame*10 + i] = 0;
+                }
+            }
+            counter = 0;
             freqPlace = 0;
         }
     }

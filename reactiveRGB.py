@@ -215,6 +215,7 @@ class AudioData():
         rgbhuetransform.AudioFormatter(adata, Sxx, f, t, self.frameCount, len(t), len(f), self.project.frameRate)
 
         self.audioData = adata.astype(float)
+        # np.savetxt("audios.csv", self.audioData, delimiter=",") #sometimes a gal's gotta just see the data
         self.totals = [0,0,0,0,0,0,0,0,0,0]
         self.runningTotals = []
         print(self.audioData.shape)
@@ -230,37 +231,40 @@ class AudioData():
         self.glowSorted = []
         self.glow2Sorted = []
         self.boomSorted = []
-        total = 0.001
-        totalweight =0.001
+        total = 0
+        totalweight =0
         for row in range(self.audioData.shape[0]):
-            total = 0.001
-            totalweight =0.001
+            total = 0
+            totalweight =0
             for freq in range(10):
                 total = total + self.project.eqGlow[freq]*self.audioData[row][freq]
                 totalweight = totalweight + self.project.eqGlow[freq]
             self.glowSorted.append(total/totalweight)
-            total = 0.001
-            totalweight =0.001
+            total = 0
+            totalweight =0
             for freq in range(10):
                 total = total + self.project.eqGlow2[freq]*self.audioData[row][freq]
                 totalweight = totalweight + self.project.eqGlow2[freq]
             self.glow2Sorted.append(total/totalweight)
-            total = 0.001
-            totalweight =0.001
+            total = 0
+            totalweight =0
             for freq in range(10):
                 total = total + self.project.eqBoom[freq]*self.audioData[row][freq]
                 totalweight = totalweight + self.project.eqBoom[freq]
             self.boomSorted.append(total/totalweight)
+        # with open("glowIntensityunsort.csv","w") as f:
+        #     for line in self.glowSorted:
+        #         f.write(f'{line}\n')
         self.glowSorted.sort()
         self.glow2Sorted.sort()
         self.boomSorted.sort()
-        with open("glowIntensity.csv","w") as f:
-            for line in self.glowSorted:
-                f.write(f'{line}\n')
+        # with open("glowIntensity.csv","w") as f:
+        #     for line in self.glowSorted:
+        #         f.write(f'{line}\n')
 
     def hueProgression(self,frame)->int:
-        total = 0.1
-        totalweight = 0.1
+        total = 0.0
+        totalweight = 0.0
         for freq in range(10):
             total = total + self.project.eqRainbow[freq]*self.runningTotals[frame][freq]/self.totals[freq]
             totalweight = totalweight + self.project.eqRainbow[freq]
