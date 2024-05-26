@@ -11,7 +11,7 @@ import time
 from scipy.io import wavfile
 from scipy import signal
 import subprocess
-import moviepy.editor as mp
+# import moviepy.editor as mp
 
 rgbhuetransform = WinDLL("./rgbhuetransform.so")
 rgbhuetransform.TransformImageHSV.argtypes = np.ctypeslib.ndpointer(dtype=ctypes.c_int), ctypes.c_int, ctypes.c_int,ctypes.c_bool
@@ -460,10 +460,12 @@ def render(project:ReactiveRGB):
     video.release()
     
     if project.audio:
-        with mp.VideoFileClip(vidname) as video:
-            audio = mp.AudioFileClip(project.audio)
-            video = video.set_audio(audio)
-            video.write_videofile(finalvidname)
+        # with mp.VideoFileClip(vidname) as video:
+        #     audio = mp.AudioFileClip(project.audio)
+        #     video = video.set_audio(audio)
+        #     video.write_videofile(finalvidname)
+        subprocess.call(["ffmpeg", "-i", vidname, "-i", project.audio, "-c:v", "copy", "-c:a", "aac", "-map", "0:v:0", "-map", "1:a:0", finalvidname])
+        
         os.remove(vidname) 
 
     #remove all temp files
