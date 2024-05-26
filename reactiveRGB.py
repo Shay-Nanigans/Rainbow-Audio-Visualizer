@@ -51,9 +51,14 @@ class ReactiveRGB:
     glowAreaMax:int = 100           #max opacity of glow
     dbPercentileFloor:int = 10      #percentage of frames considered 0
     dbPercentileCeiling:int = 90    #percentage of frames considered 100
-    glowMaxChange:int = 10          #highest amount of glow change from frame to frame
-    glow2MaxChange:int = 10         #highest amount of glow2 change from frame to frame
-    boomMaxChange:int=10            #highest amount of boom change from frame to frame
+
+    glowMaxIncrease:int = 50          #highest amount of glow change from frame to frame
+    glow2MaxIncrease:int = 50         #highest amount of glow2 change from frame to frame
+    boomMaxIncrease:int=50            #highest amount of boom change from frame to frame
+    glowMaxDecrease:int = 10          #highest amount of glow change from frame to frame
+    glow2MaxDecrease:int = 10         #highest amount of glow2 change from frame to frame
+    boomMaxDecrease:int=10            #highest amount of boom change from frame to frame
+
     threadCount:int = 20             #max number of threads to use 
     maxRAM:int = 12                 #max amount of ram usage, in GB
 
@@ -126,13 +131,18 @@ class ReactiveRGB:
     def setDbPercentileCeiling(self,val:int):
         self.dbPercentileCeiling = int(val)
 
-    def setGlowMaxChange(self,val:int):
-        self.glowMaxChange = int(val)
-    def setGlow2MaxChange(self,val:int):
-        self.glow2MaxChange = int(val)
-    def setBoomMaxChange(self,val:int):
-        self.boomMaxChange = int(val)
-
+    def setGlowMaxIncrease(self,val:int):
+        self.glowMaxIncrease = int(val)
+    def setGlow2MaxIncrease(self,val:int):
+        self.glow2MaxIncrease = int(val)
+    def setBoomMaxIncrease(self,val:int):
+        self.boomMaxIncrease = int(val)
+    def setGlowMaxDecrease(self,val:int):
+        self.glowMaxDecrease = int(val)
+    def setGlow2MaxDecrease(self,val:int):
+        self.glow2MaxDecrease = int(val)
+    def setBoomMaxDecrease(self,val:int):
+        self.boomMaxDecrease = int(val)
 
     def setThreadCount(self,val:int):
         self.threadCount = int(val)
@@ -362,8 +372,8 @@ def render(project:ReactiveRGB):
         for f in range(frameCount):
             hue = audioData.hueProgression(f)
             glow=audioData.glow(f)
-            if lastGlow+project.glowMaxChange<glow: glow = lastGlow+project.glowMaxChange
-            elif lastGlow-project.glowMaxChange>glow: glow = lastGlow-project.glowMaxChange
+            if lastGlow+project.glowMaxIncrease<glow: glow = lastGlow+project.glowMaxIncrease
+            elif lastGlow-project.glowMaxDecrease>glow: glow = lastGlow-project.glowMaxDecrease
             lastGlow = glow
             # if glow>maxGlow: maxGlow=glow
             newFrame = Frame(hue, glow = glow)
@@ -508,9 +518,12 @@ def UI(project:ReactiveRGB = None):
         ["2nd Glow Area Max","",project.glowAreaMax,lambda val:project.setGlowAreaMax(int(val)),0,100],
         ["db floor","",project.dbPercentileFloor,lambda val:project.setDbPercentileFloor(int(val)) ,0,100],
         ["db ceiling","",project.dbPercentileCeiling,lambda val:project.setDbPercentileCeiling(int(val)),0,100],
-        ["max glow change","",project.glowMaxChange,lambda val:project.setGlowMaxChange(int(val)) ,0,100],
-        ["glow2 max change","",project.glow2MaxChange,lambda val:project.setGlow2MaxChange(int(val)),0,100],
-        ["boom max change","",project.boomMaxChange,lambda val:project.setBoomMaxChange(int(val)),0,100],
+        ["max glow increase","",project.glowMaxIncrease,lambda val:project.setGlowMaxIncrease(int(val)) ,0,100],
+        ["glow2 max increase","",project.glow2MaxIncrease,lambda val:project.setGlow2MaxIncrease(int(val)),0,100],
+        ["boom max increase","",project.boomMaxIncrease,lambda val:project.setBoomMaxIncrease(int(val)),0,100],
+        ["max glow decrease","",project.glowMaxDecrease,lambda val:project.setGlowMaxDecrease(int(val)) ,0,100],
+        ["glow2 max decrease","",project.glow2MaxDecrease,lambda val:project.setGlow2MaxDecrease(int(val)),0,100],
+        ["boom max decrease","",project.boomMaxDecrease,lambda val:project.setBoomMaxDecrease(int(val)),0,100],
         ["thread count","",project.threadCount,lambda val:project.setThreadCount(int(val)),1,64],
         ["max RAM (GB)","THIS IS AN ESTIMATE",project.maxRAM,lambda val:project.setMaxRAM(int(val)),1,64]
     ]
