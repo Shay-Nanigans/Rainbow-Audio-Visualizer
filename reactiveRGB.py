@@ -300,25 +300,30 @@ def processFrame(project:ReactiveRGB, frame:Frame)-> Image:
     # t = time.time_ns()
     newImage = project.backgroundData.copy()
     if project.changeAreaData:
+
         # blurred part
-        changearea = shiftColour(project.changeAreaBlurredData,frame.hue)
-        newblur = project.backgroundData.copy()
-        newblur.paste(changearea,mask=changearea)
-        newImage = Image.blend(newImage, newblur, alpha=(project.changeAreaGlowBase * (project.changeAreaGlowMin + frame.glow*float(project.changeAreaGlowMax - project.changeAreaGlowMin)/100)/10000))
+        alpha=(project.changeAreaGlowBase * (project.changeAreaGlowMin + frame.glow*float(project.changeAreaGlowMax - project.changeAreaGlowMin)/100)/10000)
+        if(alpha>0):
+            changearea = shiftColour(project.changeAreaBlurredData,frame.hue)
+            newblur = project.backgroundData.copy()
+            newblur.paste(changearea,mask=changearea)
+            newImage = Image.blend(newImage, newblur, alpha=(project.changeAreaGlowBase * (project.changeAreaGlowMin + frame.glow*float(project.changeAreaGlowMax - project.changeAreaGlowMin)/100)/10000))
         
         # regular part
         changearea = shiftColour(project.changeAreaData,frame.hue)
         newImage.paste(changearea,mask=changearea)
 
         #linear
-        changearea = shiftColour(project.changeAreaBlurredData,frame.hue)
         alpha=project.changeAreaGlowLinAdd * (project.changeAreaGlowMin + frame.glow*float(project.changeAreaGlowMax - project.changeAreaGlowMin)/100)/10000
-        newImage = linearAdd(newImage,changearea,alpha)
+        if(alpha>0):
+            changearea = shiftColour(project.changeAreaBlurredData,frame.hue)
+            newImage = linearAdd(newImage,changearea,alpha)
         
     if project.glowAreaData:
-        glowarea = shiftColour(project.glowAreaData,frame.hue)
         alpha=(project.glowAreaMin + frame.glow*float(project.glowAreaMax - project.glowAreaMin)/100)/100
-        newImage = linearAdd(newImage,glowarea,alpha)
+        if(alpha>0):
+            glowarea = shiftColour(project.glowAreaData,frame.hue)
+            newImage = linearAdd(newImage,glowarea,alpha)
 
     # print(time.time_ns()-t)
     return newImage
