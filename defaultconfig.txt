@@ -1,0 +1,29 @@
+frameRate: 30
+rainbowRate: 4 #number of seconds on average to do a full colour rotation
+changeAreaGlowMin: 10      #min change area opacity
+changeAreaGlowMax: 100     #max change area opacity
+changeAreaGlowRadius:  20   #gaussian blur radius
+changeAreaGlowBase: 50    #percent of glow
+changeAreaGlowLinAdd: 30   #percent of linadd
+glowAreaMin:  0             #min opacity of glow
+glowAreaMax: 100           #max opacity of glow
+dbPercentileFloor: 10      #percentage of frames considered 0
+dbPercentileCeiling:  90    #percentage of frames considered 100
+glowMaxIncrease:  50          #highest amount of glow change from frame to frame
+glow2MaxIncrease: 50         #highest amount of glow2 change from frame to frame
+glowMaxDecrease: 10          #highest amount of glow change from frame to frame
+glow2MaxDecrease:  10         #highest amount of glow2 change from frame to frame
+
+maxBoom: 5                #how much it can grow (100 is double height and width)
+boomSensitivity: 50
+boomP: 10            #highest amount of boom change from frame to frame
+boomI: 30         #highest amount of boom change from frame to frame
+boomD: 50             #the smallest difference in boom to even bother trying to change it 
+
+threadCount: 20             #max number of threads to use 
+maxRAM: 12                 #max amount of ram usage, in GB
+
+eqRainbow: [100,100,100,100,100,100,100,100,100,100]
+eqGlow:  [100,100,100,100,100,100,100,100,100,100]
+eqGlow2:  [100,100,100,100,100,100,100,100,100,100]
+eqBoom:  [100,50,0,0,0,0,0,0,0,0]

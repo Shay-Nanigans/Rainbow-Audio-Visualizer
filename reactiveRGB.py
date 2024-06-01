@@ -11,6 +11,7 @@ import time
 from scipy.io import wavfile
 from scipy import signal
 import subprocess
+import yaml
 # import moviepy.editor as mp
 
 rgbhuetransform = WinDLL("./rgbhuetransform.so")
@@ -40,35 +41,36 @@ class ReactiveRGB:
 
 
     #settings
-    frameRate:int = 30
-    rainbowRate:int = 4 #number of seconds on average to do a full colour rotation
-    changeAreaGlowMin:int = 10      #min change area opacity
-    changeAreaGlowMax:int = 100     #max change area opacity
-    changeAreaGlowRadius:int = 20   #gaussian blur radius
-    changeAreaGlowBase:int = 50    #percent of glow
-    changeAreaGlowLinAdd:int = 30   #percent of linadd
-    glowAreaMin:int = 0             #min opacity of glow
-    glowAreaMax:int = 100           #max opacity of glow
-    dbPercentileFloor:int = 10      #percentage of frames considered 0
-    dbPercentileCeiling:int = 90    #percentage of frames considered 100
-    glowMaxIncrease:int = 50          #highest amount of glow change from frame to frame
-    glow2MaxIncrease:int = 50         #highest amount of glow2 change from frame to frame
-    glowMaxDecrease:int = 10          #highest amount of glow change from frame to frame
-    glow2MaxDecrease:int = 10         #highest amount of glow2 change from frame to frame
+    config={}
+    # frameRate:int = 30
+    # rainbowRate:int = 4 #number of seconds on average to do a full colour rotation
+    # changeAreaGlowMin:int = 10      #min change area opacity
+    # changeAreaGlowMax:int = 100     #max change area opacity
+    # changeAreaGlowRadius:int = 20   #gaussian blur radius
+    # changeAreaGlowBase:int = 50    #percent of glow
+    # changeAreaGlowLinAdd:int = 30   #percent of linadd
+    # glowAreaMin:int = 0             #min opacity of glow
+    # glowAreaMax:int = 100           #max opacity of glow
+    # dbPercentileFloor:int = 10      #percentage of frames considered 0
+    # dbPercentileCeiling:int = 90    #percentage of frames considered 100
+    # glowMaxIncrease:int = 50          #highest amount of glow change from frame to frame
+    # glow2MaxIncrease:int = 50         #highest amount of glow2 change from frame to frame
+    # glowMaxDecrease:int = 10          #highest amount of glow change from frame to frame
+    # glow2MaxDecrease:int = 10         #highest amount of glow2 change from frame to frame
 
-    maxBoom:int = 5                #how much it can grow (100 is double height and width)
-    boomSensitivity = 50
-    boomP:int=10            #highest amount of boom change from frame to frame
-    boomI:int=30         #highest amount of boom change from frame to frame
-    boomD:int =50             #the smallest difference in boom to even bother trying to change it 
+    # maxBoom:int = 5                #how much it can grow (100 is double height and width)
+    # boomSensitivity = 50
+    # boomP:int=10            #highest amount of boom change from frame to frame
+    # boomI:int=30         #highest amount of boom change from frame to frame
+    # boomD:int =50             #the smallest difference in boom to even bother trying to change it 
 
-    threadCount:int = 20             #max number of threads to use 
-    maxRAM:int = 12                 #max amount of ram usage, in GB
+    # threadCount:int = 20             #max number of threads to use 
+    # maxRAM:int = 12                 #max amount of ram usage, in GB
 
-    eqRainbow:list = [100,100,100,100,100,100,100,100,100,100]
-    eqGlow:list = [100,100,100,100,100,100,100,100,100,100]
-    eqGlow2:list = [100,100,100,100,100,100,100,100,100,100]
-    eqBoom:list = [100,50,0,0,0,0,0,0,0,0]
+    # eqRainbow:list = [100,100,100,100,100,100,100,100,100,100]
+    # eqGlow:list = [100,100,100,100,100,100,100,100,100,100]
+    # eqGlow2:list = [100,100,100,100,100,100,100,100,100,100]
+    # eqBoom:list = [100,50,0,0,0,0,0,0,0,0]
 
     EQFREQS = [32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384]
 
@@ -77,6 +79,15 @@ class ReactiveRGB:
             os.makedirs("temp")
         if not os.path.exists("output"):
             os.makedirs("output")
+        if not os.path.exists("config.txt"):
+            os.popen('copy defaultconfig.txt config.txt')
+            time.sleep(1)
+        with open("config.txt") as f:
+            self.config = yaml.safe_load(f)
+
+        print(self.config)
+
+
 
     def preProcessImageFile(self,filename):
         newImage = Image.open(filename)
@@ -111,66 +122,67 @@ class ReactiveRGB:
     def setAudio(self, filename):
         self.audio = filename
 
+
     def setFrameRate(self,val:int):
-        self.frameRate = int(val)
+        self.config["frameRate"] = int(val)
     def setRainbowRate(self,val:int):
-        self.rainbowRate = int(val)
+        self.config["rainbowRate"] = int(val)
     def setChangeAreaGlowMin(self,val:int):
-        self.changeAreaGlowMin = int(val)
+        self.config["changeAreaGlowMin"] = int(val)
     def setChangeAreaGlowMax(self,val:int):
-        self.changeAreaGlowMax = int(val)
+        self.config["changeAreaGlowMax"] = int(val)
     def setChangeAreaGlowRadius(self,val:int):
-        self.changeAreaGlowRadius = int(val)
+        self.config["changeAreaGlowRadius"] = int(val)
     def setChangeAreaGlowBase(self,val:int):
-        self.changeAreaGlowBase = int(val)
+        self.config["changeAreaGlowBase"] = int(val)
     def setChangeAreaGlowLinAdd(self,val:int):
-        self.changeAreaGlowLinAdd = int(val)
+        self.config["changeAreaGlowLinAdd"] = int(val)
     def setGlowAreaMin(self,val:int):
-        self.glowAreaMin = int(val)
+        self.config["glowAreaMin"] = int(val)
     def setGlowAreaMax(self,val:int):
-        self.glowAreaMax = int(val)
+        self.config["glowAreaMax"] = int(val)
     def setMaxBoom(self,val:int):
-        self.maxBoom = int(val)
+        self.config["maxBoom"] = int(val)
     def setDbPercentileFloor(self,val:int):
-        self.dbPercentileFloor = int(val)
+        self.config["dbPercentileFloor"] = int(val)
     def setDbPercentileCeiling(self,val:int):
-        self.dbPercentileCeiling = int(val)
+        self.config["dbPercentileCeiling"] = int(val)
     def setGlowMaxIncrease(self,val:int):
-        self.glowMaxIncrease = int(val)
+        self.config["glowMaxIncrease"] = int(val)
     def setGlow2MaxIncrease(self,val:int):
-        self.glow2MaxIncrease = int(val)
+        self.config["glow2MaxIncrease"] = int(val)
     def setGlowMaxDecrease(self,val:int):
-        self.glowMaxDecrease = int(val)
+        self.config["glowMaxDecrease"] = int(val)
     def setGlow2MaxDecrease(self,val:int):
-        self.glow2MaxDecrease = int(val)
+        self.config["glow2MaxDecrease"] = int(val)
     def setBoomSensitivity(self,val:int):
-        self.boomSensitivity = int(val)    
+        self.config["boomSensitivity"] = int(val)    
     def setBoomP(self,val:int):
-        self.boomP = int(val)    
+        self.config["boomP"] = int(val)    
     def setBoomI(self,val:int):
-        self.boomI = int(val)
+        self.config["boomI"] = int(val)
     def setBoomD(self,val:int):
-        self.boomD = int(val)
+        self.config["boomD"] = int(val)
     def setThreadCount(self,val:int):
-        self.threadCount = int(val)
+        self.config["threadCount"] = int(val)
     def setMaxRAM(self,val:int):
-        self.maxRAM = int(val)
+        self.config["maxRAM"] = int(val)
     def setEqGlow(self,vals:list):
-        self.eqGlow = vals
+        self.config["eqGlow"] = vals
     def setEqGlow(self, pos:int, val:int):
-        self.eqGlow[pos] = int(val)
+        self.config["eqGlow"][pos] = int(val)
     def setEqGlow2(self,vals:list):
-        self.eqGlow2 = vals
+        self.config["eqGlow2"] = vals
     def setEqGlow2(self, pos:int, val:int):
-        self.eqGlow2[pos] = int(val)
+        self.config["eqGlow2"][pos] = int(val)
     def setEqBoom(self,vals:list):
-        self.eqBoom = vals
+        self.config["eqBoom"] = vals
     def setEqBoom(self, pos:int, val:int):
-        self.eqBoom[pos] = int(val)
+        self.config["eqBoom"][pos] = int(val)
     def setEqRainbow(self,vals:list):
-        self.eqRainbow = vals
+        self.config["eqRainbow"] = vals
     def setEqRainbow(self, pos:int, val:int):
-        self.eqRainbow[pos] = int(val)
+        self.config["eqRainbow"][pos] = int(val)
 
 class Frame():
     hue = 0
@@ -225,15 +237,15 @@ class AudioData():
             os.remove('temp/tempaudio.wav') 
 
         sig = np.mean(audio, axis=1)
-        npts = int(sf/self.project.frameRate)
+        npts = int(sf/self.project.config["frameRate"])
         f, t, Sxx = signal.spectrogram(sig, sf, nperseg=npts,nfft=npts*4)
 
-        self.frameCount = int(t[-2]*self.project.frameRate)
+        self.frameCount = int(t[-2]*self.project.config["frameRate"])
         adata = np.zeros((self.frameCount,10), dtype=np.single)
         f = np.single(f)
         t = np.single(t)
         Sxx = np.single(Sxx)
-        rgbhuetransform.AudioFormatter(adata, Sxx, f, t, self.frameCount, len(t), len(f), self.project.frameRate)
+        rgbhuetransform.AudioFormatter(adata, Sxx, f, t, self.frameCount, len(t), len(f), self.project.config["frameRate"])
 
         self.audioData = adata.astype(float)
         # np.savetxt("audios.csv", self.audioData, delimiter=",") #sometimes a gal's gotta just see the data
@@ -258,20 +270,20 @@ class AudioData():
             total = 0
             totalweight =0
             for freq in range(10):
-                total = total + self.project.eqGlow[freq]*self.audioData[row][freq]
-                totalweight = totalweight + self.project.eqGlow[freq]
+                total = total + self.project.config["eqGlow"][freq]*self.audioData[row][freq]
+                totalweight = totalweight + self.project.config["eqGlow"][freq]
             self.glowSorted.append(total/totalweight)
             total = 0
             totalweight =0
             for freq in range(10):
-                total = total + self.project.eqGlow2[freq]*self.audioData[row][freq]
-                totalweight = totalweight + self.project.eqGlow2[freq]
+                total = total + self.project.config["eqGlow2"][freq]*self.audioData[row][freq]
+                totalweight = totalweight + self.project.config["eqGlow2"][freq]
             self.glow2Sorted.append(total/totalweight)
             total = 0
             totalweight =0
             for freq in range(10):
-                total = total + self.project.eqBoom[freq]*self.audioData[row][freq]
-                totalweight = totalweight + self.project.eqBoom[freq]
+                total = total + self.project.config["eqBoom"][freq]*self.audioData[row][freq]
+                totalweight = totalweight + self.project.config["eqBoom"][freq]
             self.boomSorted.append(total/totalweight)
         # with open("glowIntensityunsort.csv","w") as f:
         #     for line in self.glowSorted:
@@ -287,21 +299,21 @@ class AudioData():
         total = 0.0
         totalweight = 0.0
         for freq in range(10):
-            total = total + self.project.eqRainbow[freq]*self.runningTotals[frame][freq]/self.totals[freq]
-            totalweight = totalweight + self.project.eqRainbow[freq]
-        hue= ((self.frameCount/self.project.frameRate/self.project.rainbowRate)*360*(total/totalweight))%360
+            total = total + self.project.config["eqRainbow"][freq]*self.runningTotals[frame][freq]/self.totals[freq]
+            totalweight = totalweight + self.project.config["eqRainbow"][freq]
+        hue= ((self.frameCount/self.project.config["frameRate"]/self.project.config["rainbowRate"])*360*(total/totalweight))%360
         return hue
     
     def glow(self,frame)->int:
         total = 0.0
         totalweight = 0.0
         for freq in range(10):
-            total = total + self.project.eqGlow[freq]*self.audioData[frame][freq]
-            totalweight = totalweight + self.project.eqGlow[freq]
+            total = total + self.project.config["eqGlow"][freq]*self.audioData[frame][freq]
+            totalweight = totalweight + self.project.config["eqGlow"][freq]
 
         if totalweight==0 or total==0: return 0
 
-        glow = self.project.changeAreaGlowMin + (self.project.changeAreaGlowMax - self.project.changeAreaGlowMin) * (total/totalweight-self.glowSorted[int(len(self.glowSorted)*self.project.dbPercentileFloor/100)])/(self.glowSorted[int(len(self.glowSorted)*self.project.dbPercentileCeiling/100)]-self.glowSorted[int(len(self.glowSorted)*self.project.dbPercentileFloor/100)]) 
+        glow = self.project.config["changeAreaGlowMin"] + (self.project.config["changeAreaGlowMax"] - self.project.config["changeAreaGlowMin"]) * (total/totalweight-self.glowSorted[int(len(self.glowSorted)*self.project.config["dbPercentileFloor"]/100)])/(self.glowSorted[int(len(self.glowSorted)*self.project.config["dbPercentileCeiling"]/100)]-self.glowSorted[int(len(self.glowSorted)*self.project.config["dbPercentileFloor"]/100)]) 
         if glow<0:glow=0
         elif glow>100:glow=0
         return int(glow)
@@ -310,11 +322,11 @@ class AudioData():
         total = 0.0
         totalweight = 0.0
         for freq in range(10):
-            total = total + self.project.eqBoom[freq]*self.audioData[frame][freq]
-            totalweight = totalweight + self.project.eqBoom[freq]
+            total = total + self.project.config["eqBoom"][freq]*self.audioData[frame][freq]
+            totalweight = totalweight + self.project.config["eqBoom"][freq]
 
         if totalweight==0 or total==0: return 0
-        boom = (total/totalweight-self.boomSorted[int(len(self.boomSorted)*self.project.dbPercentileFloor/100)])/(self.boomSorted[int(len(self.boomSorted)*self.project.dbPercentileCeiling/100)]-self.boomSorted[int(len(self.boomSorted)*self.project.dbPercentileFloor/100)])*100
+        boom = (total/totalweight-self.boomSorted[int(len(self.boomSorted)*self.project.config["dbPercentileFloor"]/100)])/(self.boomSorted[int(len(self.boomSorted)*self.project.config["dbPercentileCeiling"]/100)]-self.boomSorted[int(len(self.boomSorted)*self.project.config["dbPercentileFloor"]/100)])*100
         if boom<0:boom=0
         elif boom>100:boom=0
         return int(boom)
@@ -322,7 +334,7 @@ class AudioData():
 
 def preProcessStack(project:ReactiveRGB):
     if project.changeAreaFile:
-        project.changeAreaBlurredData = Image.fromarray(cv2.blur(np.array(project.changeAreaData),(project.changeAreaGlowRadius,project.changeAreaGlowRadius)))
+        project.changeAreaBlurredData = Image.fromarray(cv2.blur(np.array(project.changeAreaData),(project.config["changeAreaGlowRadius"],project.config["changeAreaGlowRadius"])))
     
 def processFrame(project:ReactiveRGB, frame:Frame)-> Image:
     # print("--------------------------")
@@ -331,31 +343,31 @@ def processFrame(project:ReactiveRGB, frame:Frame)-> Image:
     if project.changeAreaData:
 
         # blurred part
-        alpha=(project.changeAreaGlowBase * (project.changeAreaGlowMin + frame.glow*float(project.changeAreaGlowMax - project.changeAreaGlowMin)/100)/10000)
+        alpha=(project.config["changeAreaGlowBase"] * (project.config["changeAreaGlowMin"] + frame.glow*float(project.config["changeAreaGlowMax"] - project.config["changeAreaGlowMin"])/100)/10000)
         if(alpha>0):
             changearea = shiftColour(project.changeAreaBlurredData,frame.hue)
             newblur = project.backgroundData.copy()
             newblur.paste(changearea,mask=changearea)
-            newImage = Image.blend(newImage, newblur, alpha=(project.changeAreaGlowBase * (project.changeAreaGlowMin + frame.glow*float(project.changeAreaGlowMax - project.changeAreaGlowMin)/100)/10000))
+            newImage = Image.blend(newImage, newblur, alpha=(project.config["changeAreaGlowBase"] * (project.config["changeAreaGlowMin"] + frame.glow*float(project.config["changeAreaGlowMax"] - project.config["changeAreaGlowMin"])/100)/10000))
         
         # regular part
         changearea = shiftColour(project.changeAreaData,frame.hue)
         newImage.paste(changearea,mask=changearea)
 
         #linear
-        alpha=project.changeAreaGlowLinAdd * (project.changeAreaGlowMin + frame.glow*float(project.changeAreaGlowMax - project.changeAreaGlowMin)/100)/10000
+        alpha=project.config["changeAreaGlowLinAdd"] * (project.config["changeAreaGlowMin"] + frame.glow*float(project.config["changeAreaGlowMax"] - project.config["changeAreaGlowMin"])/100)/10000
         if(alpha>0):
             changearea = shiftColour(project.changeAreaBlurredData,frame.hue)
             newImage = linearAdd(newImage,changearea,alpha)
         
     if project.glowAreaData:
-        alpha=(project.glowAreaMin + frame.glow*float(project.glowAreaMax - project.glowAreaMin)/100)/100
+        alpha=(project.config["glowAreaMin"] + frame.glow*float(project.config["glowAreaMax"] - project.config["glowAreaMin"])/100)/100
         if(alpha>0):
             glowarea = shiftColour(project.glowAreaData,frame.hue)
             newImage = linearAdd(newImage,glowarea,alpha)
 
-    if project.maxBoom>0 and frame.boom>0:
-        scale = 1 + project.maxBoom*frame.boom/10000.0 
+    if project.config["maxBoom"]>0 and frame.boom>0:
+        scale = 1 + project.config["maxBoom"]*frame.boom/10000.0 
         imgArr = np.asarray(newImage)
         newArr = imgArr[int((newImage.size[1]-newImage.size[1]/scale)/2) :int((newImage.size[1]+newImage.size[1]/scale)/2), int((newImage.size[0]-newImage.size[0]/scale)/2) :int((newImage.size[0]+newImage.size[0]/scale)/2)]
         newImage = Image.fromarray(cv2.resize(newArr,( newImage.size[0],newImage.size[1])))
@@ -404,7 +416,7 @@ def preview(project:ReactiveRGB):
 
 def render(project:ReactiveRGB):
     t =time.time_ns()
-    p = Pool(project.threadCount)
+    p = Pool(project.config["threadCount"])
 
     #remove all temp files from any previous cancelled/crashed attempts
     for f in [os.path.join("./temp",f) for f in os.listdir("./temp")]:
@@ -420,18 +432,18 @@ def render(project:ReactiveRGB):
         print("making frames")
         lastGlow = 0
         lastBoom = 0
-        boompid = [project.boomSensitivity*project.boomP/10000.0,project.boomSensitivity*project.boomI/10000.0,project.boomSensitivity*project.boomD/1000000.0]
+        boompid = [project.config["boomSensitivity"]*project.config["boomP"]/10000.0,project.config["boomSensitivity"]*project.config["boomI"]/10000.0,project.config["boomSensitivity"]*project.config["boomD"]/1000000.0]
         boomvals = [0,0,0,0]
         for f in range(frameCount):
 
             hue = audioData.hueProgression(f)
 
             glow=audioData.glow(f)
-            if lastGlow+project.glowMaxIncrease<glow: glow = lastGlow+project.glowMaxIncrease
-            elif lastGlow-project.glowMaxDecrease>glow: glow = lastGlow-project.glowMaxDecrease
+            if lastGlow+project.config["glowMaxIncrease"]<glow: glow = lastGlow+project.config["glowMaxIncrease"]
+            elif lastGlow-project.config["glowMaxDecrease"]>glow: glow = lastGlow-project.config["glowMaxDecrease"]
             lastGlow = glow
 
-            if project.maxBoom>0: 
+            if project.config["maxBoom"]>0: 
                 boom = audioData.boom(f)
                 # if abs(boom-lastBoom)>project.minBoomDiff:
                 #     if lastBoom+project.boomMaxIncrease<boom: boom = lastBoom+project.boomMaxIncrease
@@ -458,7 +470,7 @@ def render(project:ReactiveRGB):
         
 
     else:
-        frameCount = project.frameRate*project.rainbowRate
+        frameCount = project.config["frameRate"]*project.config["rainbowRate"]
         for f in range(frameCount):
             newFrame = Frame(hue=f*360/frameCount)
             frameOrder.append(newFrame.__str__())
@@ -471,8 +483,8 @@ def render(project:ReactiveRGB):
         finalvidname = f'./output/output{time.time()}.mp4'
     else:
         vidname = f'./output/output{time.time()}.mp4'
-    video = cv2.VideoWriter(vidname,0,project.frameRate,project.backgroundData.size)
-    batchSize = project.maxRAM*1000000000/(project.backgroundData.size[0]*project.backgroundData.size[1]*4*4)
+    video = cv2.VideoWriter(vidname,0,project.config["frameRate"],project.backgroundData.size)
+    batchSize = project.config["maxRAM"]*1000000000/(project.backgroundData.size[0]*project.backgroundData.size[1]*4*4)
     batchCount = 0
     
 
@@ -483,7 +495,7 @@ def render(project:ReactiveRGB):
         thisBatchSize = 0
         frameWork = []
         framesToDo = set()
-        for i in range(project.threadCount):
+        for i in range(project.config["threadCount"]):
             frameWork.append([project,[]])
         nextThread = 0
         while thisBatchSize<batchSize and workFrameNum<len(frameOrder):
@@ -492,7 +504,7 @@ def render(project:ReactiveRGB):
                 frameWork[nextThread][1].append([frameOrder[workFrameNum],frames[frameOrder[workFrameNum]]['frame']])
                 framesToDo.add(frameOrder[workFrameNum])
                 thisBatchSize+=1
-                nextThread=(nextThread+1)%project.threadCount
+                nextThread=(nextThread+1)%project.config["threadCount"]
             workFrameNum+=1
 
 
@@ -579,28 +591,28 @@ def UI(project:ReactiveRGB = None):
     #sliders
     sliders = [
         # [label, description, start value, lambda, min, max]
-        ["Frame Rate","",project.frameRate,lambda val:project.setFrameRate(int(val)),1,100],
-        ["Rainbow Rate","Average number of seconds per rainbow rotation",project.rainbowRate,lambda val:project.setRainbowRate(int(val)),0,100],
-        ["Minimum Glow","min change area opacity",project.changeAreaGlowMin,lambda val:project.setChangeAreaGlowMin(int(val)),0,100],
-        ["Maximum Glow","max change area opacity",project.changeAreaGlowMax,lambda val:project.setChangeAreaGlowMax(int(val)),0,100],
-        ["Glow Radius","gaussian blur radius on glow",project.changeAreaGlowRadius,lambda val:project.setChangeAreaGlowRadius(int(val)) ,0,100],
-        ["Change Area Glow","Base Change Area Glow",project.changeAreaGlowBase,lambda val:project.setChangeAreaGlowBase(int(val)),0,100],
-        ["change Area linAdd","",project.changeAreaGlowLinAdd,lambda val:project.setChangeAreaGlowLinAdd(int(val)),0,100],
-        ["2nd Glow Area Min","",project.glowAreaMin,lambda val:project.setGlowAreaMin(int(val)) ,0,100],
-        ["2nd Glow Area Max","",project.glowAreaMax,lambda val:project.setGlowAreaMax(int(val)),0,100],
-        ["db floor","",project.dbPercentileFloor,lambda val:project.setDbPercentileFloor(int(val)) ,0,100],
-        ["db ceiling","",project.dbPercentileCeiling,lambda val:project.setDbPercentileCeiling(int(val)),0,100],
-        ["max glow increase","",project.glowMaxIncrease,lambda val:project.setGlowMaxIncrease(int(val)) ,0,100],
-        ["max glow decrease","",project.glowMaxDecrease,lambda val:project.setGlowMaxDecrease(int(val)) ,0,100],
-        ["glow2 max increase","",project.glow2MaxIncrease,lambda val:project.setGlow2MaxIncrease(int(val)),0,100],
-        ["glow2 max decrease","",project.glow2MaxDecrease,lambda val:project.setGlow2MaxDecrease(int(val)),0,100],
-        ["Boom MAX","",project.maxBoom,lambda val:project.setMaxBoom(int(val)),0,100],
-        ["boom Sensitivity","",project.boomSensitivity,lambda val:project.setBoomSensitivity(int(val)),0,100],
-        ["boom Proportional","",project.boomP,lambda val:project.setBoomP(int(val)),0,100],
-        ["boom Integral","",project.boomI,lambda val:project.setBoomI(int(val)),0,100],
-        ["boom Derivative","",project.boomD,lambda val:project.setBoomD(int(val)),0,100],
-        ["thread count","",project.threadCount,lambda val:project.setThreadCount(int(val)),1,64],
-        ["max RAM (GB)","THIS IS AN ESTIMATE",project.maxRAM,lambda val:project.setMaxRAM(int(val)),1,64]
+        ["Frame Rate","",project.config["frameRate"],lambda val:project.setFrameRate(int(val)),1,100],
+        ["Rainbow Rate","Average number of seconds per rainbow rotation",project.config["rainbowRate"],lambda val:project.setRainbowRate(int(val)),0,100],
+        ["Minimum Glow","min change area opacity",project.config["changeAreaGlowMin"],lambda val:project.setChangeAreaGlowMin(int(val)),0,100],
+        ["Maximum Glow","max change area opacity",project.config["changeAreaGlowMax"],lambda val:project.setChangeAreaGlowMax(int(val)),0,100],
+        ["Glow Radius","gaussian blur radius on glow",project.config["changeAreaGlowRadius"],lambda val:project.setChangeAreaGlowRadius(int(val)) ,0,100],
+        ["Change Area Glow","Base Change Area Glow",project.config["changeAreaGlowBase"],lambda val:project.setChangeAreaGlowBase(int(val)),0,100],
+        ["change Area linAdd","",project.config["changeAreaGlowLinAdd"],lambda val:project.setChangeAreaGlowLinAdd(int(val)),0,100],
+        ["2nd Glow Area Min","",project.config["glowAreaMin"],lambda val:project.setGlowAreaMin(int(val)) ,0,100],
+        ["2nd Glow Area Max","",project.config["glowAreaMax"],lambda val:project.setGlowAreaMax(int(val)),0,100],
+        ["db floor","",project.config["dbPercentileFloor"],lambda val:project.setDbPercentileFloor(int(val)) ,0,100],
+        ["db ceiling","",project.config["dbPercentileCeiling"],lambda val:project.setDbPercentileCeiling(int(val)),0,100],
+        ["max glow increase","",project.config["glowMaxIncrease"],lambda val:project.setGlowMaxIncrease(int(val)) ,0,100],
+        ["max glow decrease","",project.config["glowMaxDecrease"],lambda val:project.setGlowMaxDecrease(int(val)) ,0,100],
+        ["glow2 max increase","",project.config["glow2MaxIncrease"],lambda val:project.setGlow2MaxIncrease(int(val)),0,100],
+        ["glow2 max decrease","",project.config["glow2MaxDecrease"],lambda val:project.setGlow2MaxDecrease(int(val)),0,100],
+        ["Boom MAX","",project.config["maxBoom"],lambda val:project.setMaxBoom(int(val)),0,100],
+        ["boom Sensitivity","",project.config["boomSensitivity"],lambda val:project.setBoomSensitivity(int(val)),0,100],
+        ["boom Proportional","",project.config["boomP"],lambda val:project.setBoomP(int(val)),0,100],
+        ["boom Integral","",project.config["boomI"],lambda val:project.setBoomI(int(val)),0,100],
+        ["boom Derivative","",project.config["boomD"],lambda val:project.setBoomD(int(val)),0,100],
+        ["thread count","",project.config["threadCount"],lambda val:project.setThreadCount(int(val)),1,64],
+        ["max RAM (GB)","THIS IS AN ESTIMATE",project.config["maxRAM"],lambda val:project.setMaxRAM(int(val)),1,64]
     ]
     
     sliderObjects = []
@@ -623,7 +635,7 @@ def UI(project:ReactiveRGB = None):
         eqRainbowParts.append({})
         eqRainbowParts[n]['slider'] = tk.Scale(ui, from_=100, to=0, orient=tk.VERTICAL, command= lambda val:project.setEqRainbow(n, int(val)) )
         eqRainbowParts[n]['slider'].grid(row = 1, column = 7+n)
-        eqRainbowParts[n]['slider'].set(project.eqRainbow[n])
+        eqRainbowParts[n]['slider'].set(project.config["eqRainbow"][n])
         eqRainbowParts[n]['label'] = tk.Label(text=project.EQFREQS[n])
         eqRainbowParts[n]['label'].grid(row =  2, column=  7+n)
 
@@ -634,7 +646,7 @@ def UI(project:ReactiveRGB = None):
         eqGlowParts.append({})
         eqGlowParts[n]['slider'] = tk.Scale(ui, from_=100, to=0, orient=tk.VERTICAL, command= lambda val:project.setEqGlow(n, int(val)) )
         eqGlowParts[n]['slider'].grid(row = 3, column = 7+n)
-        eqGlowParts[n]['slider'].set(project.eqGlow[n])
+        eqGlowParts[n]['slider'].set(project.config["eqGlow"][n])
         eqGlowParts[n]['label'] = tk.Label(text=project.EQFREQS[n])
         eqGlowParts[n]['label'].grid(row =  4, column=  7+n)
 
@@ -645,7 +657,7 @@ def UI(project:ReactiveRGB = None):
         eqGlow2Parts.append({})
         eqGlow2Parts[n]['slider'] = tk.Scale(ui, from_=100, to=0, orient=tk.VERTICAL, command= lambda val:project.setEqGlow2(n, int(val)) )
         eqGlow2Parts[n]['slider'].grid(row = 5, column = 7+n)
-        eqGlow2Parts[n]['slider'].set(project.eqGlow2[n])
+        eqGlow2Parts[n]['slider'].set(project.config["eqGlow2"][n])
         eqGlow2Parts[n]['label'] = tk.Label(text=project.EQFREQS[n])
         eqGlow2Parts[n]['label'].grid(row =  6, column=  7+n)
 
@@ -656,7 +668,7 @@ def UI(project:ReactiveRGB = None):
         eqBoomParts.append({})
         eqBoomParts[n]['slider'] = tk.Scale(ui, from_=100, to=0, orient=tk.VERTICAL, command= lambda val:project.setEqBoom(n, int(val)) )
         eqBoomParts[n]['slider'].grid(row = 7, column = 7+n)
-        eqBoomParts[n]['slider'].set(project.eqBoom[n])
+        eqBoomParts[n]['slider'].set(project.config["eqBoom"][n])
         eqBoomParts[n]['label'] = tk.Label(text=project.EQFREQS[n])
         eqBoomParts[n]['label'].grid(row =  8, column=  7+n)
 

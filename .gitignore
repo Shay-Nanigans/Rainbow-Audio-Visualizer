@@ -4,3 +4,4 @@ temp/*
 compile.bat
 *.csv
 
+config.txt
