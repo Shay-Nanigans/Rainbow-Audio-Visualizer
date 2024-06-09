@@ -82,9 +82,8 @@ class ReactiveRGB:
         if not os.path.exists("config.txt"):
             os.popen('copy defaultconfig.txt config.txt')
             time.sleep(1)
-        with open("config.txt") as f:
-            self.config = yaml.safe_load(f)
-
+        self.loadConfig()
+        
         print(self.config)
 
 
@@ -122,6 +121,17 @@ class ReactiveRGB:
     def setAudio(self, filename):
         self.audio = filename
 
+    def loadConfig(self):
+        with open("config.txt") as f:
+            self.config = yaml.safe_load(f)
+
+    def saveConfig(self):
+        with open("config.txt", "w") as f:
+            yaml.safe_dump(self.config, f)
+    def resetConfig(self):
+        os.popen('copy defaultconfig.txt config.txt')
+        time.sleep(1)
+        self.loadConfig()
 
     def setFrameRate(self,val:int):
         self.config["frameRate"] = int(val)
@@ -556,15 +566,20 @@ def render(project:ReactiveRGB):
 
     print(f"TIME: {(time.time_ns()-t)/1000000}ms")
 
+def loadUI(ui, project:ReactiveRGB):
+    project.loadConfig()
+    for thing in ui.winfo_children():
+        thing.destroy()
+    populateUI(ui, project)
 
-def UI(project:ReactiveRGB = None):
-    if project is None: project = ReactiveRGB()
-    ui = tk.Tk()
-    ui.title('Rainbowing Audio')
-    
-    
+def resetUI(ui, project:ReactiveRGB):
+    project.resetConfig()
+    for thing in ui.winfo_children():
+        thing.destroy()
+    populateUI(ui, project)
 
-    #images
+def populateUI(ui, project):
+        #images
     # minImage = tk.Label( ui ,height= 20)
     # midImage = tk.Label(ui ,height= 20)
     # maxImage = tk.Label(ui ,height= 20)
@@ -577,6 +592,9 @@ def UI(project:ReactiveRGB = None):
     changeAreaButton = tk.Button(ui, text='Changing Area', width=25, command=lambda:project.setChangeArea(askopenfilename()))
     glowAreaButton = tk.Button(ui, text='Glow Area', width=25, command=lambda:project.setGlowArea(askopenfilename()))
     audioFileButton = tk.Button(ui, text='Audio', width=25, command=lambda:project.setAudio(askopenfilename()))
+    saveButton = tk.Button(ui, text="Save Settings", command=lambda:project.saveConfig())
+    loadButton = tk.Button(ui, text="Load Settings", command=lambda:loadUI(ui,project))
+    resetButton = tk.Button(ui, text="Reset Settings", command=lambda:resetUI(ui,project))
     setButton = tk.Button(ui, text="PREVIEW", command=lambda:preview(project))
     renderButton = tk.Button(ui, text="RENDER", command=lambda:render(project))
     # setButton = tk.Button(ui, text="SET", command=lambda:previewImage(minImage,midImage,maxImage,project))
@@ -584,8 +602,11 @@ def UI(project:ReactiveRGB = None):
     changeAreaButton.grid(row = 1, column = 0)
     glowAreaButton.grid(row = 2, column = 0)
     audioFileButton.grid(row = 3, column = 0)
-    setButton.grid(row = 4, column = 0)
-    renderButton.grid(row = 5, column = 0)
+    saveButton.grid(row = 4, column = 0)
+    loadButton.grid(row = 5, column = 0)
+    resetButton.grid(row = 6, column = 0)
+    setButton.grid(row = 7, column = 0)
+    renderButton.grid(row = 8, column = 0)
 
 
     #sliders
@@ -616,7 +637,7 @@ def UI(project:ReactiveRGB = None):
     ]
     
     sliderObjects = []
-    counter = 1
+    counter = 0
     for slider in sliders:
         newSlider = tk.Scale(ui, from_=slider[4], to=slider[5], orient=tk.HORIZONTAL, command= slider[3] )
         newSlider.grid(row = counter, column = 4)
@@ -671,6 +692,14 @@ def UI(project:ReactiveRGB = None):
         eqBoomParts[n]['slider'].set(project.config["eqBoom"][n])
         eqBoomParts[n]['label'] = tk.Label(text=project.EQFREQS[n])
         eqBoomParts[n]['label'].grid(row =  8, column=  7+n)
+
+
+def UI(project:ReactiveRGB = None):
+    if project is None: project = ReactiveRGB()
+    ui = tk.Tk()
+    ui.title('Rainbowing Audio')
+    populateUI(ui, project)
+    
 
 
     ui.mainloop()
