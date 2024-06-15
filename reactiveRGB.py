@@ -89,12 +89,13 @@ class ReactiveRGB:
 
 
     def preProcessImageFile(self,filename):
-        newImage = Image.open(filename)
-        if newImage.has_transparency_data:
-            return newImage
-        output = Image.new("RGBA",newImage.size)
-        output.paste(newImage)
-        return output
+        return Image.open(filename).convert('RGBA')
+        # newImage = Image.open(filename)
+        # if newImage.has_transparency_data:
+        #     return newImage
+        # output = Image.new("RGBA",newImage.size)
+        # output.paste(newImage)
+        # return output
 
     def setBackground(self, filename):
         self.backgroundFile = filename
@@ -133,6 +134,10 @@ class ReactiveRGB:
         time.sleep(1)
         self.loadConfig()
 
+    def setConfig(self,key:str,val:int):
+        self.config[key] = val
+    def setConfigInt(self,key:str,val:int):
+        self.config[key] = int(val)
     def setFrameRate(self,val:int):
         self.config["frameRate"] = int(val)
     def setRainbowRate(self,val:int):
@@ -406,7 +411,7 @@ def linearAdd(img:Image, imgadd:Image, alpha:float)->Image:
     elif alpha<0:alpha=0
     imgArr = np.asarray(img, dtype=np.int32)
     imgAddArr = np.asarray(imgadd, dtype=np.int32)
-    rgbhuetransform.LinearAdd(imgArr,imgAddArr,int(imgArr.shape[0]*imgArr.shape[1]),alpha, img.has_transparency_data, imgadd.has_transparency_data)
+    rgbhuetransform.LinearAdd(imgArr,imgAddArr,int(imgArr.shape[0]*imgArr.shape[1]),alpha, True, True)
 
     return Image.fromarray(np.uint8(imgArr))
 
@@ -488,11 +493,10 @@ def render(project:ReactiveRGB):
                 frames[newFrame.__str__()] = {"frame":newFrame,"num":0,"hasFile":False}
             frames[newFrame.__str__()]['num']+=1
     print("frames made")
-    if project.audio:
-        vidname = f'./output/temp{time.time()}.mp4'
-        finalvidname = f'./output/output{time.time()}.mp4'
-    else:
-        vidname = f'./output/output{time.time()}.mp4'
+
+    vidname = f'./temp/temp{time.time()}.mp4'
+    finalvidname = f'./output/output{time.time()}.mp4'
+
     video = cv2.VideoWriter(vidname,0,project.config["frameRate"],project.backgroundData.size)
     batchSize = project.config["maxRAM"]*1000000000/(project.backgroundData.size[0]*project.backgroundData.size[1]*4*4)
     batchCount = 0
@@ -556,15 +560,23 @@ def render(project:ReactiveRGB):
         #     audio = mp.AudioFileClip(project.audio)
         #     video = video.set_audio(audio)
         #     video.write_videofile(finalvidname)
-        subprocess.call(["ffmpeg", "-i", vidname, "-i", project.audio, "-c:v", "copy", "-c:a", "aac", "-map", "0:v:0", "-map", "1:a:0", finalvidname])
-        
-        os.remove(vidname) 
+        subprocess.call(["ffmpeg", "-i", vidname, "-i", project.audio, "-c:v", "libx264", "-c:a", "aac", "-map", "0:v:0", "-map", "1:a:0", "-crf",str(project.config['crf']), finalvidname])
+    else:
+        subprocess.call(["ffmpeg", "-i", vidname, "-c:v", "libx264", "-crf", str(project.config['crf']), finalvidname])
 
     #remove all temp files
     for f in [os.path.join("./temp",f) for f in os.listdir("./temp")]:
         os.remove(f) 
 
     print(f"TIME: {(time.time_ns()-t)/1000000}ms")
+
+
+def maskButton(button, project:ReactiveRGB):
+    project.setChangeAreaMask(project.changeAreaMask == False)
+    if project.changeAreaMask:
+        button.config(relief="sunken")
+    else:
+        button.config(relief="raised")
 
 def loadUI(ui, project:ReactiveRGB):
     project.loadConfig()
@@ -590,6 +602,7 @@ def populateUI(ui, project):
     #mainbuttons
     backgroundButton = tk.Button(ui, text='Background', width=25, command=lambda:project.setBackground(askopenfilename()))
     changeAreaButton = tk.Button(ui, text='Changing Area', width=25, command=lambda:project.setChangeArea(askopenfilename()))
+    changeAreaMaskButton = tk.Button(ui, text='Changing Area is mask', width=25, command=lambda:maskButton(changeAreaMaskButton,project))
     glowAreaButton = tk.Button(ui, text='Glow Area', width=25, command=lambda:project.setGlowArea(askopenfilename()))
     audioFileButton = tk.Button(ui, text='Audio', width=25, command=lambda:project.setAudio(askopenfilename()))
     saveButton = tk.Button(ui, text="Save Settings", command=lambda:project.saveConfig())
@@ -598,21 +611,19 @@ def populateUI(ui, project):
     setButton = tk.Button(ui, text="PREVIEW", command=lambda:preview(project))
     renderButton = tk.Button(ui, text="RENDER", command=lambda:render(project))
     # setButton = tk.Button(ui, text="SET", command=lambda:previewImage(minImage,midImage,maxImage,project))
-    backgroundButton.grid(row = 0, column = 0)
-    changeAreaButton.grid(row = 1, column = 0)
-    glowAreaButton.grid(row = 2, column = 0)
-    audioFileButton.grid(row = 3, column = 0)
-    saveButton.grid(row = 4, column = 0)
-    loadButton.grid(row = 5, column = 0)
-    resetButton.grid(row = 6, column = 0)
-    setButton.grid(row = 7, column = 0)
-    renderButton.grid(row = 8, column = 0)
-
+    
+    buttonList = [backgroundButton,changeAreaButton,changeAreaMaskButton , glowAreaButton,audioFileButton,saveButton,loadButton,resetButton,setButton,renderButton]
+    i=0
+    for num in range(len(buttonList)):
+        buttonList[i].grid(row = i, column = 0)
+        i+=1
+        
 
     #sliders
     sliders = [
         # [label, description, start value, lambda, min, max]
         ["Frame Rate","",project.config["frameRate"],lambda val:project.setFrameRate(int(val)),1,100],
+        ["crf","Video Quality",project.config["crf"],lambda val:project.setConfig("crf",int(val)),1,51],
         ["Rainbow Rate","Average number of seconds per rainbow rotation",project.config["rainbowRate"],lambda val:project.setRainbowRate(int(val)),0,100],
         ["Minimum Glow","min change area opacity",project.config["changeAreaGlowMin"],lambda val:project.setChangeAreaGlowMin(int(val)),0,100],
         ["Maximum Glow","max change area opacity",project.config["changeAreaGlowMax"],lambda val:project.setChangeAreaGlowMax(int(val)),0,100],
