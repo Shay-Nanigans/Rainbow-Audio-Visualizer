@@ -16,10 +16,11 @@ glowMaxDecrease: 10          #highest amount of glow change from frame to frame
 glow2MaxDecrease:  10         #highest amount of glow2 change from frame to frame
 
 maxBoom: 5                #how much it can grow (100 is double height and width)
-boomSensitivity: 50
-boomP: 10            #highest amount of boom change from frame to frame
-boomI: 30         #highest amount of boom change from frame to frame
-boomD: 50             #the smallest difference in boom to even bother trying to change it 
+boomoffset: 3             #how offset for boom growth
+boomwinlen: 5             #how big of an area to average
+boompolyorder: 3          
+boomderiv: 0
+boomdelta: 0
 
 threadCount: 20             #max number of threads to use 
 maxRAM: 12                 #max amount of ram usage, in GB

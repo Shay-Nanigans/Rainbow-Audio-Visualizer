@@ -309,6 +309,23 @@ class AudioData():
         # with open("glowIntensity.csv","w") as f:
         #     for line in self.glowSorted:
         #         f.write(f'{line}\n')
+        
+        self.boomProcessed = []
+        for i in range(self.audioData.shape[0]):
+            self.boomProcessed.append(self.boom(i))
+
+        if self.project.config["boomwinlen"]>1:  
+            self.boomProcessed = signal.savgol_filter(self.boomProcessed,self.project.config["boomwinlen"],self.project.config["boompolyorder"], deriv=self.project.config["boomderiv"] , delta=self.project.config["boomdelta"])
+            self.boomProcessed = self.boomProcessed.tolist()
+            for i in range(abs(self.project.config["boomoffset"])):
+                if self.project.config["boomoffset"]>0:
+                    self.boomProcessed.insert(0,0)
+                    self.boomProcessed.pop()
+                elif self.project.config["boomoffset"]<0:
+                    self.boomProcessed.append(0)
+                    self.boomProcessed.pop(0)
+        self.boomProcessed =rescaleList(self.boomProcessed,0,100,True)
+                
 
     def hueProgression(self,frame)->int:
         total = 0.0
@@ -346,6 +363,15 @@ class AudioData():
         elif boom>100:boom=0
         return int(boom)
 
+def rescaleList(things:list,newMin,newMax,isInt:bool = False):
+    oldMax = max(things)
+    oldMin = min(things)
+    m = (newMax-newMin)/(oldMax-oldMin)
+    b = newMin-oldMin*(newMax-newMin)/(oldMax-oldMin)
+    for thing in range(len(things)):
+        things[thing] = m*things[thing]+b
+        if isInt:things[thing]=int(things[thing])
+    return things
 
 def preProcessStack(project:ReactiveRGB):
     if project.changeAreaFile:
@@ -446,9 +472,7 @@ def render(project:ReactiveRGB):
         frameCount = audioData.frameCount
         print("making frames")
         lastGlow = 0
-        lastBoom = 0
-        boompid = [project.config["boomSensitivity"]*project.config["boomP"]/10000.0,project.config["boomSensitivity"]*project.config["boomI"]/10000.0,project.config["boomSensitivity"]*project.config["boomD"]/1000000.0]
-        boomvals = [0,0,0,0]
+
         for f in range(frameCount):
 
             hue = audioData.hueProgression(f)
@@ -459,17 +483,8 @@ def render(project:ReactiveRGB):
             lastGlow = glow
 
             if project.config["maxBoom"]>0: 
-                boom = audioData.boom(f)
-                # if abs(boom-lastBoom)>project.minBoomDiff:
-                #     if lastBoom+project.boomMaxIncrease<boom: boom = lastBoom+project.boomMaxIncrease
-                #     elif lastBoom-project.boomMaxDecrease>boom: boom = lastBoom-project.boomMaxDecrease
-                #     lastBoom = boom
-                # else:
-                #     boom = lastBoom
-                boomvals[1]=boom
-                boomvals = PID(boomvals,boompid)
-                # print(boomvals)
-                boom = boomvals[0]
+                boom = audioData.boomProcessed[f]
+
             else:
                 boom = 0
 
@@ -629,20 +644,21 @@ def populateUI(ui, project):
         ["Maximum Glow","max change area opacity",project.config["changeAreaGlowMax"],lambda val:project.setChangeAreaGlowMax(int(val)),0,100],
         ["Glow Radius","gaussian blur radius on glow",project.config["changeAreaGlowRadius"],lambda val:project.setChangeAreaGlowRadius(int(val)) ,0,100],
         ["Change Area Glow","Base Change Area Glow",project.config["changeAreaGlowBase"],lambda val:project.setChangeAreaGlowBase(int(val)),0,100],
-        ["change Area linAdd","",project.config["changeAreaGlowLinAdd"],lambda val:project.setChangeAreaGlowLinAdd(int(val)),0,100],
+        ["change Area linAdd","Glowy glow",project.config["changeAreaGlowLinAdd"],lambda val:project.setChangeAreaGlowLinAdd(int(val)),0,100],
         ["2nd Glow Area Min","",project.config["glowAreaMin"],lambda val:project.setGlowAreaMin(int(val)) ,0,100],
         ["2nd Glow Area Max","",project.config["glowAreaMax"],lambda val:project.setGlowAreaMax(int(val)),0,100],
-        ["db floor","",project.config["dbPercentileFloor"],lambda val:project.setDbPercentileFloor(int(val)) ,0,100],
-        ["db ceiling","",project.config["dbPercentileCeiling"],lambda val:project.setDbPercentileCeiling(int(val)),0,100],
-        ["max glow increase","",project.config["glowMaxIncrease"],lambda val:project.setGlowMaxIncrease(int(val)) ,0,100],
-        ["max glow decrease","",project.config["glowMaxDecrease"],lambda val:project.setGlowMaxDecrease(int(val)) ,0,100],
+        ["db floor","Percentage of values considered '0'",project.config["dbPercentileFloor"],lambda val:project.setDbPercentileFloor(int(val)) ,0,100],
+        ["db ceiling","Percentage of values considered '100'",project.config["dbPercentileCeiling"],lambda val:project.setDbPercentileCeiling(int(val)),0,100],
+        ["max glow increase","Max rate of glow increase",project.config["glowMaxIncrease"],lambda val:project.setGlowMaxIncrease(int(val)) ,0,100],
+        ["max glow decrease","Max rate of glow decrease",project.config["glowMaxDecrease"],lambda val:project.setGlowMaxDecrease(int(val)) ,0,100],
         ["glow2 max increase","",project.config["glow2MaxIncrease"],lambda val:project.setGlow2MaxIncrease(int(val)),0,100],
         ["glow2 max decrease","",project.config["glow2MaxDecrease"],lambda val:project.setGlow2MaxDecrease(int(val)),0,100],
-        ["Boom MAX","",project.config["maxBoom"],lambda val:project.setMaxBoom(int(val)),0,100],
-        ["boom Sensitivity","",project.config["boomSensitivity"],lambda val:project.setBoomSensitivity(int(val)),0,100],
-        ["boom Proportional","",project.config["boomP"],lambda val:project.setBoomP(int(val)),0,100],
-        ["boom Integral","",project.config["boomI"],lambda val:project.setBoomI(int(val)),0,100],
-        ["boom Derivative","",project.config["boomD"],lambda val:project.setBoomD(int(val)),0,100],
+        ["Boom MAX","Maximum amount image can grow",project.config["maxBoom"],lambda val:project.setMaxBoom(int(val)),0,100],
+        ["boomoffset","shift boom by frames",project.config["boomoffset"],lambda val:project.setConfig("boomoffset",int(val)),-50,50],
+        ["boomwinlen","softening range for boom",project.config["boomwinlen"],lambda val:project.setConfig("boomwinlen",int(val)),1,100],
+        ["boompolyorder","",project.config["boompolyorder"],lambda val:project.setConfig("boompolyorder",int(val)),1,10],
+        ["boomderiv","",project.config["boomderiv"],lambda val:project.setConfig("boomderiv",int(val)),0,10],
+        ["boomdelta","",project.config["boomdelta"],lambda val:project.setConfig("boomdelta",int(val)),0,10],
         ["thread count","",project.config["threadCount"],lambda val:project.setThreadCount(int(val)),1,64],
         ["max RAM (GB)","THIS IS AN ESTIMATE",project.config["maxRAM"],lambda val:project.setMaxRAM(int(val)),1,64]
     ]
@@ -658,7 +674,7 @@ def populateUI(ui, project):
         newDescr.grid(row =  counter, column=  5)
         newSlider.set(slider[2])
         sliderObjects.append([newSlider,newLabel,newDescr])
-        counter+=2
+        counter+=1
 
     eqRainbowParts = []
     eqRainbowLabel = tk.Label(text="Rainbow Reactivity")
