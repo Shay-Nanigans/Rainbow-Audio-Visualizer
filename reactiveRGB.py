@@ -12,6 +12,7 @@ from scipy.io import wavfile
 from scipy import signal
 import subprocess
 import yaml
+import winsound
 # import moviepy.editor as mp
 
 rgbhuetransform = WinDLL("./rgbhuetransform.so")
@@ -584,6 +585,11 @@ def render(project:ReactiveRGB):
         os.remove(f) 
 
     print(f"TIME: {(time.time_ns()-t)/1000000}ms")
+    beep()
+
+def beep():
+    winsound.Beep(440, 200)
+    winsound.Beep(880, 100)
 
 
 def maskButton(button, project:ReactiveRGB):
