@@ -127,6 +127,8 @@ class RainbowLayer():
             self.imgData.paste(baseImg, mask = mask)
     def reset(self):
         self.config = self.project.config['defaultlayer'].copy()
+        self.config['eqRainbow'] = self.project.config['defaultlayer']['eqRainbow'].copy()
+        self.config['eqGlow'] = self.project.config['defaultlayer']['eqGlow'].copy()
     def setMask(self,val):
         self.imgMask = str(val)
     def setFile(self,val):
