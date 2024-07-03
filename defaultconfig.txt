@@ -26,3 +26,5 @@ defaultlayer:
     changeAreaGlowLinAdd: 69   #percent of linadd
     glowMaxIncrease:  50          #highest amount of glow change from frame to frame
     glowMaxDecrease: 10          #highest amount of glow change from frame to frame
+    saturationShift: 0 
+    luminanceShift: 0

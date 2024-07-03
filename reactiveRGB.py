@@ -284,6 +284,7 @@ class AudioData():
                 
 
     def hueProgression(self,frame,layer)->int:
+        if self.project.layers[layer].config["rainbowRate"]==0: return 0
         total = 0.0
         totalweight = 0.0
         for freq in range(10):
@@ -344,20 +345,20 @@ def processFrame(project:ReactiveRGB, frame:Frame)-> Image:
         # blurred part
         alpha=(project.layers[layer].config["changeAreaGlowBase"] * (project.layers[layer].config["changeAreaGlowMin"] + frame.glow[i]*float(project.layers[layer].config["changeAreaGlowMax"] - project.layers[layer].config["changeAreaGlowMin"])/100)/10000)
         if(alpha>0):
-            changearea = shiftColour(project.layers[layer].imgBlurredData,frame.hue[i])
+            changearea = shiftColour(project.layers[layer].imgBlurredData,frame.hue[i],project.layers[layer].config['saturationShift'],project.layers[layer].config['luminanceShift'])
             newblur = project.backgroundData.copy()
             newblur.paste(changearea,mask=changearea)
             newImage = Image.blend(newImage, newblur, alpha=(project.layers[layer].config["changeAreaGlowBase"] * (project.layers[layer].config["changeAreaGlowMin"] + frame.glow[i]*float(project.layers[layer].config["changeAreaGlowMax"] - project.layers[layer].config["changeAreaGlowMin"])/100)/10000))
         
         # regular part
         if project.layers[layer].config["hasBaseLayer"]:
-            changearea = shiftColour(project.layers[layer].imgData,frame.hue[i])
+            changearea = shiftColour(project.layers[layer].imgData,frame.hue[i],project.layers[layer].config['saturationShift'],project.layers[layer].config['luminanceShift'])
             newImage.paste(changearea,mask=changearea)
 
         #linear
         alpha=project.layers[layer].config["changeAreaGlowLinAdd"] * (project.layers[layer].config["changeAreaGlowMin"] + frame.glow[i]*float(project.layers[layer].config["changeAreaGlowMax"] - project.layers[layer].config["changeAreaGlowMin"])/100)/10000
         if(alpha>0):
-            changearea = shiftColour(project.layers[layer].imgBlurredData,frame.hue[i])
+            changearea = shiftColour(project.layers[layer].imgBlurredData,frame.hue[i],project.layers[layer].config['saturationShift'],project.layers[layer].config['luminanceShift'])
             newImage = linearAdd(newImage,changearea,alpha)
         i+=1
     if project.config["maxBoom"]>0 and frame.boom>0:
@@ -380,6 +381,9 @@ def tempSave(imgandname):
     imgandname[0].save(f"./temp/{imgandname[1]}.png")
 #HSL version
 def shiftColour(image:Image, hueShift:float, saturationShift:float=0.0, luminanceShift = 0.0)->Image:
+    saturationShift = saturationShift/100
+    luminanceShift = luminanceShift/100 
+
     img = np.asarray(image, dtype=np.int32)
     # print(img.shape[0]*img.shape[1])
     # print(img[0][0])
@@ -440,7 +444,7 @@ def render(project:ReactiveRGB):
                 if lastGlow[i]+project.layers[layer].config["glowMaxIncrease"]<glow[i]: glow[i] = lastGlow[i]+project.layers[layer].config["glowMaxIncrease"]
                 elif lastGlow[i]-project.layers[layer].config["glowMaxDecrease"]>glow[i]: glow[i] = lastGlow[i]-project.layers[layer].config["glowMaxDecrease"]
                 lastGlow[i] = glow[i]
-
+                i+=1
             if project.config["maxBoom"]>0: 
                 boom = audioData.boomProcessed[f]
             else:
@@ -612,7 +616,9 @@ def rainbowLayerSettings(project, k):
     ["Change Area Glow","Base Change Area Glow",project.layers[k].config["changeAreaGlowBase"],lambda val,k=k:project.layers[k].setConfig("changeAreaGlowBase",int(val)),0,100],
     ["change Area linAdd","Glowy glow",project.layers[k].config["changeAreaGlowLinAdd"],lambda val,k=k:project.layers[k].setConfig("changeAreaGlowLinAdd",int(val)),0,100],
     ["max glow increase","Max rate of glow increase",project.layers[k].config["glowMaxIncrease"],lambda val,k=k:project.layers[k].setConfig("glowMaxIncrease",int(val)) ,0,100],
-    ["max glow decrease","Max rate of glow decrease",project.layers[k].config["glowMaxDecrease"],lambda val,k=k:project.layers[k].setConfig("glowMaxDecrease",int(val)) ,0,100]]
+    ["max glow decrease","Max rate of glow decrease",project.layers[k].config["glowMaxDecrease"],lambda val,k=k:project.layers[k].setConfig("glowMaxDecrease",int(val)) ,0,100],
+    ["Saturation adjust","",project.layers[k].config["saturationShift"],lambda val,k=k:project.layers[k].setConfig("saturationShift",int(val)) ,-100,100],
+    ["Lightness adjust","",project.layers[k].config["luminanceShift"],lambda val,k=k:project.layers[k].setConfig("luminanceShift",int(val)) ,-100,100]]
     sliderObjects = []
     counter = 0
     for slider in sliders:
