@@ -1,20 +1,12 @@
 frameRate: 30
 crf: 23 #video quality
-rainbowRate: 4 #number of seconds on average to do a full colour rotation
-changeAreaGlowMin: 20      #min change area opacity
-changeAreaGlowMax: 100     #max change area opacity
-changeAreaGlowRadius:  20   #gaussian blur radius
-changeAreaGlowBase: 20    #percent of glow
-changeAreaGlowLinAdd: 69   #percent of linadd
-glowAreaMin:  0             #min opacity of glow
-glowAreaMax: 100           #max opacity of glow
+threadCount: 16  #max number of threads to use 
+maxRAM: 8 #max amount of ram usage, in GB
+
 dbPercentileFloor: 25      #percentage of frames considered 0
 dbPercentileCeiling:  90    #percentage of frames considered 100
-glowMaxIncrease:  50          #highest amount of glow change from frame to frame
-glow2MaxIncrease: 50         #highest amount of glow2 change from frame to frame
-glowMaxDecrease: 10          #highest amount of glow change from frame to frame
-glow2MaxDecrease:  10         #highest amount of glow2 change from frame to frame
 
+eqBoom:  [100,25,0,0,0,0,0,0,0,0]
 maxBoom: 5                #how much it can grow (100 is double height and width)
 boomoffset: 1             #how offset for boom growth
 boomwinlen: 6             #how big of an area to average
@@ -22,10 +14,15 @@ boompolyorder: 3
 boomderiv: 0
 boomdelta: 0
 
-threadCount: 16             #max number of threads to use 
-maxRAM: 8                 #max amount of ram usage, in GB
-
-eqRainbow: [50,75,100,100,100,67,33,0,0,0]
-eqGlow:  [100,100,100,67,33,0,0,0,0,0]
-eqGlow2: [100,100,100,67,33,0,0,0,0,0]
-eqBoom:  [100,25,0,0,0,0,0,0,0,0]
+defaultlayer:
+    hasBaseLayer: True #has base layer
+    rainbowRate: 4 #number of seconds on average to do a full colour rotation
+    eqRainbow: [50,75,100,100,100,67,33,0,0,0]
+    eqGlow:  [100,100,100,67,33,0,0,0,0,0]
+    changeAreaGlowMin: 20      #min change area opacity
+    changeAreaGlowMax: 100     #max change area opacity
+    changeAreaGlowRadius:  20   #gaussian blur radius
+    changeAreaGlowBase: 20    #percent of glow
+    changeAreaGlowLinAdd: 69   #percent of linadd
+    glowMaxIncrease:  50          #highest amount of glow change from frame to frame
+    glowMaxDecrease: 10          #highest amount of glow change from frame to frame
