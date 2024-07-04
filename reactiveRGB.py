@@ -271,7 +271,7 @@ class AudioData():
             self.boomProcessed.append(self.boom(i))
 
         if self.project.config["boomwinlen"]>1:  
-            self.boomProcessed = signal.savgol_filter(self.boomProcessed,self.project.config["boomwinlen"],self.project.config["boompolyorder"], deriv=self.project.config["boomderiv"] , delta=self.project.config["boomdelta"])
+            self.boomProcessed = signal.savgol_filter(self.boomProcessed,self.project.config["boomwinlen"],self.project.config["boompolyorder"])
             self.boomProcessed = self.boomProcessed.tolist()
             for i in range(abs(self.project.config["boomoffset"])):
                 if self.project.config["boomoffset"]>0:
@@ -695,9 +695,7 @@ def populateUI(ui, project):
         ["Boom MAX","Maximum amount image can grow",project.config["maxBoom"],lambda val:project.setConfig("maxBoom",int(val)),0,100],
         ["boomoffset","shift boom by frames",project.config["boomoffset"],lambda val:project.setConfig("boomoffset",int(val)),-50,50],
         ["boomwinlen","softening range for boom",project.config["boomwinlen"],lambda val:project.setConfig("boomwinlen",int(val)),1,100],
-        ["boompolyorder","",project.config["boompolyorder"],lambda val:project.setConfig("boompolyorder",int(val)),1,10],
-        ["boomderiv","",project.config["boomderiv"],lambda val:project.setConfig("boomderiv",int(val)),0,10],
-        ["boomdelta","",project.config["boomdelta"],lambda val:project.setConfig("boomdelta",int(val)),0,10]        
+        ["boompolyorder","",project.config["boompolyorder"],lambda val:project.setConfig("boompolyorder",int(val)),1,10]        
     ]
     
     sliderObjects = []

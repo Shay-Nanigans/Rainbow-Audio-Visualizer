@@ -9,10 +9,8 @@ dbPercentileCeiling:  90    #percentage of frames considered 100
 eqBoom:  [100,25,0,0,0,0,0,0,0,0]
 maxBoom: 5                #how much it can grow (100 is double height and width)
 boomoffset: 1             #how offset for boom growth
-boomwinlen: 6             #how big of an area to average
-boompolyorder: 3          
-boomderiv: 0
-boomdelta: 0
+boomwinlen: 7             #how big of an area to average
+boompolyorder: 2          
 
 defaultlayer:
     hasBaseLayer: True #has base layer
