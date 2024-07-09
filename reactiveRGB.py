@@ -13,6 +13,7 @@ from scipy import signal
 import subprocess
 import yaml
 import winsound
+import pickle
 # import moviepy.editor as mp
 
 rgbhuetransform = WinDLL("./rgbhuetransform.so")
@@ -90,6 +91,30 @@ class ReactiveRGB:
         self.config[key] = val
     def setConfigInt(self,key:str,val:int):
         self.config[key] = int(val)
+
+    def save(self, filename):
+        data = {"backgroundFile":self.backgroundFile,
+        "changeAreaFile":self.changeAreaFile,
+        "changeAreaMask":self.changeAreaMask,
+        "glowAreaFile":self.glowAreaFile,
+        "audio": self.audio,
+        "layers":self.layers,
+        "layercounter":self.layercounter,
+        "config":self.config,
+                }
+        open(filename,"wb").write(pickle.dumps(data))
+    
+    def load(self, filename):
+        data = pickle.load(open(filename,"rb"))
+        self.backgroundFile=data["backgroundFile"]
+        self.changeAreaFile=data["changeAreaFile"]
+        self.changeAreaMask=data["changeAreaMask"]
+        self.glowAreaFile=data["glowAreaFile"]
+        self.audio=data["audio"]
+        self.layers=data["layers"]
+        self.layercounter=data["layercounter"]
+        self.config=data["config"]
+        self.setBackground(self.backgroundFile)
 
     def cleanup(self):
         for layer in self.layers:
@@ -333,7 +358,11 @@ def rescaleList(things:list,newMin,newMax,isInt:bool = False):
 def preProcessStack(project:ReactiveRGB):
     for key in project.layers.keys():
         project.layers[key].prepImg()
-        project.layers[key].imgBlurredData = Image.fromarray(cv2.blur(np.array(project.layers[key].imgData),(project.layers[key].config["changeAreaGlowRadius"],project.layers[key].config["changeAreaGlowRadius"])))
+        if project.layers[key].config["changeAreaGlowRadius"]>0:
+            project.layers[key].imgBlurredData = Image.fromarray(cv2.blur(np.array(project.layers[key].imgData),(project.layers[key].config["changeAreaGlowRadius"],project.layers[key].config["changeAreaGlowRadius"])))
+        else: 
+            project.layers[key].imgBlurredData = project.layers[key].imgData 
+
 
 def processFrame(project:ReactiveRGB, frame:Frame)-> Image:
     # print("--------------------------")
@@ -462,7 +491,7 @@ def render(project:ReactiveRGB):
         
 
     else:
-        frameCount = project.config["frameRate"]*project.layers[project.layers.keys()[0]].config["rainbowRate"]
+        frameCount = project.config["frameRate"]*project.layers[list(project.layers.keys())[0]].config["rainbowRate"]
         for f in range(frameCount):
             newFrame = Frame(hue=f*360/frameCount)
             frameOrder.append(newFrame.__str__())
@@ -576,6 +605,16 @@ def clearUI(ui):
     
     for thing in ui.winfo_children():
         thing.destroy()
+
+def saveProject(project):
+    # filename = askopenfilename(filetypes=[('Reactive Rainbow files','.rrgb')])
+    filename= 'testthings/savefile.rrgb'
+    project.save(filename)
+
+def loadProject(ui, project):
+    project.load(askopenfilename(filetypes=[('Reactive Rainbow files','.rrgb')]))
+    refreshUI(ui,project)
+
 def newLayer(ui, project):
     project.newLayer(askopenfilename())
     refreshUI(ui, project)
@@ -612,7 +651,7 @@ def rainbowLayerSettings(project, k):
     sliders = [["Rainbow Rate","Average number of seconds per rainbow rotation",project.layers[k].config["rainbowRate"],lambda val,k=k:project.layers[k].setConfig("rainbowRate",int(val)),0,100],
     ["Minimum Glow","min change area opacity",project.layers[k].config["changeAreaGlowMin"],lambda val,k=k:project.layers[k].setConfig("changeAreaGlowMin",int(val)),0,100],
     ["Maximum Glow","max change area opacity",project.layers[k].config["changeAreaGlowMax"],lambda val,k=k:project.layers[k].setConfig("changeAreaGlowMax",int(val)),0,100],
-    ["Glow Radius","gaussian blur radius on glow",project.layers[k].config["changeAreaGlowRadius"],lambda val,k=k:project.layers[k].setConfig("changeAreaGlowRadius",int(val)) ,0,100],
+    ["Glow Radius","gaussian blur radius on glow",project.layers[k].config["changeAreaGlowRadius"],lambda val,k=k:project.layers[k].setConfig("changeAreaGlowRadius",int(val)) ,0,500],
     ["Change Area Glow","Base Change Area Glow",project.layers[k].config["changeAreaGlowBase"],lambda val,k=k:project.layers[k].setConfig("changeAreaGlowBase",int(val)),0,100],
     ["change Area linAdd","Glowy glow",project.layers[k].config["changeAreaGlowLinAdd"],lambda val,k=k:project.layers[k].setConfig("changeAreaGlowLinAdd",int(val)),0,100],
     ["max glow increase","Max rate of glow increase",project.layers[k].config["glowMaxIncrease"],lambda val,k=k:project.layers[k].setConfig("glowMaxIncrease",int(val)) ,0,100],
@@ -674,8 +713,10 @@ def populateUI(ui, project):
     setButton = tk.Button(ui, text="PREVIEW", command=lambda:preview(project))
     renderButton = tk.Button(ui, text="RENDER", command=lambda:render(project))
     # setButton = tk.Button(ui, text="SET", command=lambda:previewImage(minImage,midImage,maxImage,project))
-    
-    buttonList = [backgroundButton,audioFileButton,saveButton,loadButton,resetButton,setButton,renderButton]
+    saveProjectButton = tk.Button(ui, text='Save Project', width=25, command=lambda:saveProject(project))
+    loadProjectButton = tk.Button(ui, text='Load Project', width=25, command=lambda:loadProject(ui,project))
+
+    buttonList = [backgroundButton,audioFileButton,saveButton,loadButton,resetButton,setButton,saveProjectButton,loadProjectButton,renderButton]
     i=0
     for num in range(len(buttonList)):
         buttonList[i].grid(row = i, column = 0)
