@@ -306,6 +306,54 @@ extern "C"
         }
     }
 
+    API void Paste(int *img1, int *img2, int pixelCount, float alpha, bool transparent1 = false, bool transparent2 = false)
+    {
+        if (alpha > 1)
+        {
+            alpha = 1;
+        }
+        else if (alpha < 0)
+        {
+            alpha = 0;
+        }
+        if (alpha==0){
+            return;
+        }
+        int img1multiple = 3;
+        if (transparent1)
+        {
+            img1multiple = 4;
+        }
+        int img2multiple = 3;
+        if (transparent2)
+        {
+            img2multiple = 4;
+        }
+        int x = 0;
+        float thisAlpha = 0;
+        while (x < pixelCount)
+        {
+            if (transparent2)
+            {
+                if (img2[x * img2multiple + 3]>0){
+                    thisAlpha = alpha * img2[x * img2multiple + 3] / 255;
+                    img1[x * img1multiple] = img1[x * img1multiple]*(1-thisAlpha) + img2[x * img2multiple] * thisAlpha;
+                    img1[x * img1multiple + 1] = img1[x * img1multiple + 1]*(1-thisAlpha) + img2[x * img2multiple + 1] * thisAlpha;
+                    img1[x * img1multiple + 2] = img1[x * img1multiple + 2]*(1-thisAlpha) + img2[x * img2multiple + 2] * thisAlpha;
+                }
+                
+            }
+            else
+            {
+                img1[x * img1multiple] = img1[x * img1multiple]*(1-alpha) + img2[x * img2multiple] * alpha;
+                img1[x * img1multiple + 1] = img1[x * img1multiple + 1]*(1-alpha) + img2[x * img2multiple + 1] * alpha;
+                img1[x * img1multiple + 2] = img1[x * img1multiple + 2]*(1-alpha) + img2[x * img2multiple + 2] * alpha;
+            }
+
+            x++;
+        }
+    }
+
     API void AudioFormatter(float *output, float *input, float *freq, float *time, int framecount, int timeCount, int freqCount, int framerate)
     {
         int freqEnds[10] = {32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384};

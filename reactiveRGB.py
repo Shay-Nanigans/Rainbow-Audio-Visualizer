@@ -25,6 +25,8 @@ rgbhuetransform.LinearAdd.argtypes = np.ctypeslib.ndpointer(dtype=ctypes.c_int),
 rgbhuetransform.LinearAdd.restype = None
 rgbhuetransform.AudioFormatter.argtypes = np.ctypeslib.ndpointer(dtype=ctypes.c_float), np.ctypeslib.ndpointer(dtype=ctypes.c_float), np.ctypeslib.ndpointer(dtype=ctypes.c_float), np.ctypeslib.ndpointer(dtype=ctypes.c_float), ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int
 rgbhuetransform.AudioFormatter.restype = None
+rgbhuetransform.Paste.argtypes = np.ctypeslib.ndpointer(dtype=ctypes.c_int), np.ctypeslib.ndpointer(dtype=ctypes.c_int), ctypes.c_int, ctypes.c_float, ctypes.c_bool,ctypes.c_bool
+rgbhuetransform.Paste.restype = None
 
 class ReactiveRGB:
     #files and file accesories
@@ -60,7 +62,7 @@ class ReactiveRGB:
 
     def setBackground(self, filename):
         self.backgroundFile = filename
-        self.backgroundData = Image.open(filename).convert('RGBA')
+        self.backgroundData = np.asarray(Image.open(filename).convert('RGBA'), dtype=np.int32)
 
     def setAudio(self, filename):
         self.audio = filename
@@ -150,6 +152,7 @@ class RainbowLayer():
             mask = mask.convert("L")
             baseImg = Image.open(self.imgMask).convert('RGBA')
             self.imgData.paste(baseImg, mask = mask)
+        self.imgData = np.asarray(self.imgData, dtype=np.int32)
     def reset(self):
         self.config = self.project.config['defaultlayer'].copy()
         self.config['eqRainbow'] = self.project.config['defaultlayer']['eqRainbow'].copy()
@@ -359,7 +362,7 @@ def preProcessStack(project:ReactiveRGB):
     for key in project.layers.keys():
         project.layers[key].prepImg()
         if project.layers[key].config["changeAreaGlowRadius"]>0:
-            project.layers[key].imgBlurredData = Image.fromarray(cv2.blur(np.array(project.layers[key].imgData),(project.layers[key].config["changeAreaGlowRadius"],project.layers[key].config["changeAreaGlowRadius"])))
+            project.layers[key].imgBlurredData = np.int32(cv2.blur(np.uint8(project.layers[key].imgData.copy()),(project.layers[key].config["changeAreaGlowRadius"],project.layers[key].config["changeAreaGlowRadius"])))
         else: 
             project.layers[key].imgBlurredData = project.layers[key].imgData 
 
@@ -374,30 +377,33 @@ def processFrame(project:ReactiveRGB, frame:Frame)-> Image:
         # blurred part
         alpha=(project.layers[layer].config["changeAreaGlowBase"] * (project.layers[layer].config["changeAreaGlowMin"] + frame.glow[i]*float(project.layers[layer].config["changeAreaGlowMax"] - project.layers[layer].config["changeAreaGlowMin"])/100)/10000)
         if(alpha>0):
-            changearea = shiftColour(project.layers[layer].imgBlurredData,frame.hue[i],project.layers[layer].config['saturationShift'],project.layers[layer].config['luminanceShift'])
-            newblur = project.backgroundData.copy()
-            newblur.paste(changearea,mask=changearea)
-            newImage = Image.blend(newImage, newblur, alpha=(project.layers[layer].config["changeAreaGlowBase"] * (project.layers[layer].config["changeAreaGlowMin"] + frame.glow[i]*float(project.layers[layer].config["changeAreaGlowMax"] - project.layers[layer].config["changeAreaGlowMin"])/100)/10000))
+            changearea = project.layers[layer].imgBlurredData.copy()
+            shiftColour(changearea,frame.hue[i],project.layers[layer].config['saturationShift'],project.layers[layer].config['luminanceShift'])
+            alpha=(project.layers[layer].config["changeAreaGlowBase"] * (project.layers[layer].config["changeAreaGlowMin"] + frame.glow[i]*float(project.layers[layer].config["changeAreaGlowMax"] - project.layers[layer].config["changeAreaGlowMin"])/100)/10000)
+            paste(newImage,changearea,alpha)
         
         # regular part
         if project.layers[layer].config["hasBaseLayer"]:
-            changearea = shiftColour(project.layers[layer].imgData,frame.hue[i],project.layers[layer].config['saturationShift'],project.layers[layer].config['luminanceShift'])
-            newImage.paste(changearea,mask=changearea)
+            changearea = project.layers[layer].imgData.copy()
+            shiftColour(changearea,frame.hue[i],project.layers[layer].config['saturationShift'],project.layers[layer].config['luminanceShift'])
+            paste(newImage,changearea,alpha=1)
 
         #linear
         alpha=project.layers[layer].config["changeAreaGlowLinAdd"] * (project.layers[layer].config["changeAreaGlowMin"] + frame.glow[i]*float(project.layers[layer].config["changeAreaGlowMax"] - project.layers[layer].config["changeAreaGlowMin"])/100)/10000
         if(alpha>0):
-            changearea = shiftColour(project.layers[layer].imgBlurredData,frame.hue[i],project.layers[layer].config['saturationShift'],project.layers[layer].config['luminanceShift'])
-            newImage = linearAdd(newImage,changearea,alpha)
+            changearea = project.layers[layer].imgBlurredData.copy()
+            shiftColour(changearea,frame.hue[i],project.layers[layer].config['saturationShift'],project.layers[layer].config['luminanceShift'])
+            linearAdd(newImage,changearea,alpha)
         i+=1
+
     if project.config["maxBoom"]>0 and frame.boom>0:
         scale = 1 + project.config["maxBoom"]*frame.boom/10000.0 
-        imgArr = np.asarray(newImage)
-        newArr = imgArr[int((newImage.size[1]-newImage.size[1]/scale)/2) :int((newImage.size[1]+newImage.size[1]/scale)/2), int((newImage.size[0]-newImage.size[0]/scale)/2) :int((newImage.size[0]+newImage.size[0]/scale)/2)]
-        newImage = Image.fromarray(cv2.resize(newArr,( newImage.size[0],newImage.size[1])))
-
+        newArr = newImage[int((newImage.shape[0]-newImage.shape[0]/scale)/2) :int((newImage.shape[0]+newImage.shape[0]/scale)/2), int((newImage.shape[1]-newImage.shape[1]/scale)/2) :int((newImage.shape[1]+newImage.shape[1]/scale)/2)]
+        newImage = cv2.resize(np.uint8(newArr),dsize=(newImage.shape[1],newImage.shape[0]))
+    else:
+        newImage=np.uint8(newImage)
     # print(time.time_ns()-t)
-    return newImage
+    return Image.fromarray(newImage,'RGBA')
 
 def threadProcessFrame(things):
     project, frames, layers = things
@@ -409,24 +415,23 @@ def threadProcessFrame(things):
 def tempSave(imgandname):
     imgandname[0].save(f"./temp/{imgandname[1]}.png")
 #HSL version
-def shiftColour(image:Image, hueShift:float, saturationShift:float=0.0, luminanceShift = 0.0)->Image:
+def shiftColour(img, hueShift:float, saturationShift:float=0.0, luminanceShift = 0.0):
     saturationShift = saturationShift/100
     luminanceShift = luminanceShift/100 
-
-    img = np.asarray(image, dtype=np.int32)
     # print(img.shape[0]*img.shape[1])
     # print(img[0][0])
     rgbhuetransform.TransformImageHSL(img,int(img.shape[0]*img.shape[1]), hueShift,saturationShift,luminanceShift, len(img[0][0]))
-    return Image.fromarray(np.uint8(img))
 
-def linearAdd(img:Image, imgadd:Image, alpha:float)->Image:
+def linearAdd(img, imgadd, alpha:float):
     if alpha>1:alpha=1
     elif alpha<0:alpha=0
-    imgArr = np.asarray(img, dtype=np.int32)
-    imgAddArr = np.asarray(imgadd, dtype=np.int32)
-    rgbhuetransform.LinearAdd(imgArr,imgAddArr,int(imgArr.shape[0]*imgArr.shape[1]),alpha, True, True)
 
-    return Image.fromarray(np.uint8(imgArr))
+    rgbhuetransform.LinearAdd(img,imgadd,int(img.shape[0]*img.shape[1]),alpha, True, True)
+
+def paste(img, imgadd, alpha:float):
+    if alpha>1:alpha=1
+    elif alpha<0:alpha=0
+    rgbhuetransform.Paste(img,imgadd,int(img.shape[0]*img.shape[1]),alpha, True, True)
 
 def PID(pid:list,pidsettings:list):
     current,target,errorlast,ierror = pid
@@ -444,7 +449,7 @@ def preview(project:ReactiveRGB):
 
 def render(project:ReactiveRGB):
     t =time.time_ns()
-    p = Pool(project.config["threadCount"])
+    p = Pool(project.config["threadCount"],maxtasksperchild = 1)
 
     #remove all temp files from any previous cancelled/crashed attempts
     for f in [os.path.join("./temp",f) for f in os.listdir("./temp")]:
@@ -503,8 +508,8 @@ def render(project:ReactiveRGB):
     vidname = f'./temp/temp{time.time()}.mp4'
     finalvidname = f'./output/output{time.time()}.mp4'
 
-    video = cv2.VideoWriter(vidname,0,project.config["frameRate"],project.backgroundData.size)
-    batchSize = project.config["maxRAM"]*1000000000/(project.backgroundData.size[0]*project.backgroundData.size[1]*4*4)
+    video = cv2.VideoWriter(vidname,0,project.config["frameRate"],(project.backgroundData.shape[1],project.backgroundData.shape[0]))
+    batchSize = project.config["maxRAM"]*1000000000/(project.backgroundData.shape[0]*project.backgroundData.shape[1]*4*4)
     batchCount = 0
     
 
