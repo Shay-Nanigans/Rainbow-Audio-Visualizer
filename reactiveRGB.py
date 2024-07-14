@@ -6,7 +6,7 @@ import cv2
 from ctypes import WinDLL
 import ctypes
 import os
-from multiprocessing import Pool
+from multiprocessing import Pool,Process,Queue
 import time
 from scipy.io import wavfile
 from scipy import signal
@@ -202,6 +202,9 @@ class Frame():
         self.boom = int(boom)
         self.wobble = int(wobble)
         self.tilt = int(tilt)
+    @classmethod
+    def fromDict(cls,things:dict):
+        return cls(things.items())
     def __str__(self) -> str:
         id = ""
         for h in self.hue:
@@ -216,7 +219,8 @@ class Frame():
             elif g<0:
                 g = 0
             self.glow.append(int(glow))
-
+    def toDict(self):
+        return {'hue':self.hue,'glow':self.glow,'boom':self.boom,'wobble':self.wobble,'tilt':self.tilt}
 
 class AudioData():
     project:ReactiveRGB = None
@@ -367,7 +371,7 @@ def preProcessStack(project:ReactiveRGB):
             project.layers[key].imgBlurredData = project.layers[key].imgData 
 
 
-def processFrame(project:ReactiveRGB, frame:Frame)-> Image:
+def processFrame(project:ReactiveRGB, frame:Frame):
     # print("--------------------------")
     # t = time.time_ns()
     newImage = project.backgroundData.copy()
@@ -403,17 +407,21 @@ def processFrame(project:ReactiveRGB, frame:Frame)-> Image:
     else:
         newImage=np.uint8(newImage)
     # print(time.time_ns()-t)
-    return Image.fromarray(newImage,'RGBA')
+    #WHY DOES CV2 USE BGR
+    return cv2.cvtColor(newImage, cv2.COLOR_RGB2BGR)
 
-def threadProcessFrame(things):
-    project, frames, layers = things
+def threadProcessFrame(qIn, qOut, project, layers):
     project.layers = layers
-    output = []
-    for frame in frames:
-        output.append([frame[0], processFrame(project, frame[1])])
-    return output
+    while(True):
+        if qIn.empty():
+            time.sleep(0.1)
+        else:
+            frame = qIn.get()
+            result = [str(frame), processFrame(project, frame)]
+            qOut.put(result)
+
 def tempSave(imgandname):
-    imgandname[0].save(f"./temp/{imgandname[1]}.png")
+    Image.fromarray(imgandname[0],'RGBA').save(f"./temp/{imgandname[1]}.png")
 #HSL version
 def shiftColour(img, hueShift:float, saturationShift:float=0.0, luminanceShift = 0.0):
     saturationShift = saturationShift/100
@@ -442,6 +450,20 @@ def PID(pid:list,pidsettings:list):
     output = p*error + i*ierror + d*derror
     return [int(output), target, error, ierror]
 
+def writeFrames(q:Queue, name, framerate, width, height,framecount):
+    print("writeFrames")
+    video = cv2.VideoWriter(name,0,framerate,(width,height))
+    f=0
+    while f<framecount:
+        if q.empty():
+            pass
+        else:
+            nextframe = q.get()
+            video.write(nextframe)
+            f+=1
+            if f%25 == 0:
+                print(f'frame {f} written')
+    video.release()
 def preview(project:ReactiveRGB):
     processFrame(project,Frame(hue=0)).save("rainbowoutput1.png")
     processFrame(project,Frame(hue=85)).save("rainbowoutput2.png")
@@ -449,7 +471,7 @@ def preview(project:ReactiveRGB):
 
 def render(project:ReactiveRGB):
     t =time.time_ns()
-    p = Pool(project.config["threadCount"],maxtasksperchild = 1)
+    p = Pool(4)
 
     #remove all temp files from any previous cancelled/crashed attempts
     for f in [os.path.join("./temp",f) for f in os.listdir("./temp")]:
@@ -508,63 +530,79 @@ def render(project:ReactiveRGB):
     vidname = f'./temp/temp{time.time()}.mp4'
     finalvidname = f'./output/output{time.time()}.mp4'
 
-    video = cv2.VideoWriter(vidname,0,project.config["frameRate"],(project.backgroundData.shape[1],project.backgroundData.shape[0]))
-    batchSize = project.config["maxRAM"]*1000000000/(project.backgroundData.shape[0]*project.backgroundData.shape[1]*4*4)
-    batchCount = 0
     
+    maxFrameCount = project.config["maxRAM"]*1000000000/(project.backgroundData.shape[0]*project.backgroundData.shape[1]*4*4)
+    print(f'MaxFrameCount = {maxFrameCount}')
+
+    qIn = Queue()
+    qOut = Queue()
+    qFinal = Queue()
+    workers=[]
+    mainWorker = Process(target=writeFrames ,args=(qFinal,vidname,project.config["frameRate"],project.backgroundData.shape[1],project.backgroundData.shape[0],len(frameOrder)))
+    mainWorker.start()
+    if project.config["threadCount"]==1: project.config["threadCount"]=2
+    for n in range(project.config["threadCount"]-1):
+        workers.append(Process(target=threadProcessFrame,args=(qIn,qOut,project,project.layers)))
+        workers[n].start()
 
     frameNum = 0
     workFrameNum = 0
-    while batchSize*batchCount<frameCount:
-        #prepping the frame work list list
-        thisBatchSize = 0
-        frameWork = []
-        framesToDo = set()
-        for i in range(project.config["threadCount"]):
-            frameWork.append([project,[],project.layers])
-        nextThread = 0
-        while thisBatchSize<batchSize and workFrameNum<len(frameOrder):
+    availFrames = {}
+    doneFrames = set()
+    while frameNum<len(frameOrder):
 
-            if not frames[frameOrder[workFrameNum]]["hasFile"] and frameOrder[workFrameNum] not in framesToDo:
-                frameWork[nextThread][1].append([frameOrder[workFrameNum],frames[frameOrder[workFrameNum]]['frame']])
-                framesToDo.add(frameOrder[workFrameNum])
-                thisBatchSize+=1
-                nextThread=(nextThread+1)%project.config["threadCount"]
+        while qIn.qsize()<maxFrameCount/4 and workFrameNum<len(frameOrder):
+
+            if not frames[frameOrder[workFrameNum]]["hasFile"] and frameOrder[workFrameNum] not in doneFrames:
+                qIn.put(frames[frameOrder[workFrameNum]]['frame'])
+                doneFrames.add(frameOrder[workFrameNum])
+                # print(f'frame {workFrameNum} queued')
             workFrameNum+=1
-
-
-        #process all the new frames
-        output = p.map(threadProcessFrame,frameWork)
-
-        newFrames = {}
-        for frameSet in output:
-            for frame in frameSet:
-                newFrames[frame[0]]=frame[1]
         
-        while(frameNum<workFrameNum):
+        while not qOut.empty():
+            output = qOut.get()
+            availFrames[output[0]]=output[1]
+            # print(len(availFrames))
+        while qFinal.qsize()<maxFrameCount/4 and frameNum<len(frameOrder):
+
             #get images either from the new processed images or from disk
-            if frameOrder[frameNum] in newFrames:
-                thisFrame = np.asarray(newFrames[frameOrder[frameNum]], dtype=np.uint8)
-            else:
+            if frameOrder[frameNum] in availFrames:
+                thisFrame = availFrames[frameOrder[frameNum]]
+            elif frames[frameOrder[frameNum]]["hasFile"]:
                 thisFrame = np.asarray(Image.open(f".temp/{frameOrder[frameNum]}.png"), dtype=np.uint8)
-
-            #WHY DOES CV2 USE BGR
-            thisFrame = cv2.cvtColor(thisFrame, cv2.COLOR_RGB2BGR)
-            video.write(thisFrame)
-
+            else: 
+                break
             frames[frameOrder[frameNum]]["num"]-=1
+            qFinal.put(thisFrame)
             frameNum+=1
-        #if any images will be used in the future, save them
-        savelist = []
-        for frame in newFrames.keys():
-            if frames[frame]["num"]>0 and not frames[frame]["hasFile"]:
-                savelist.append([newFrames[frame], frame])
-        p.map(tempSave, savelist)
-                
-        
-        batchCount+=1
 
-    video.release()
+        #if any images will be used in the future, save them
+        if project.config["threadCount"]+qIn.qsize()+qFinal.qsize()+len(availFrames) > maxFrameCount:
+            availCapacity=maxFrameCount-project.config["threadCount"]+qIn.qsize()+qFinal.qsize()+len(availFrames)
+            availFramesKeys = []
+            for frame in availFrames.keys():
+                if frames[frame]["num"]>0 and not frames[frame]["hasFile"]:
+                    availFramesKeys.append(frame)
+                
+            if len(availFramesKeys)>availCapacity:
+                newKeys = set()
+                for f in frameOrder[frameNum:]:
+                    if f in availFramesKeys:
+                        newKeys.add(f)
+                        if len(newKeys)>availCapacity:break
+                savelist = []
+                for key in availFramesKeys:
+                    if key not in newKeys:
+                        savelist.append([availFrames[key],key])
+                        frames[key]["hasFile"]=True
+                p.map(tempSave, savelist)
+
+            availFramesNew = {}
+            for key in availFramesKeys:
+                availFramesNew[key] = availFrames[key]
+            availFrames = availFramesNew
+    mainWorker.join()
+    
     
     if project.audio:
         # with mp.VideoFileClip(vidname) as video:
@@ -581,7 +619,9 @@ def render(project:ReactiveRGB):
 
     print(f"TIME: {(time.time_ns()-t)/1000000}ms")
     beep()
-
+    for worker in workers:
+            worker.terminate()
+            # worker.close()
 def beep():
     winsound.Beep(440, 200)
     winsound.Beep(880, 100)
@@ -734,7 +774,7 @@ def populateUI(ui, project):
         # [label, description, start value, lambda, min, max]
         ["Frame Rate","",project.config["frameRate"],lambda val:project.setConfig("frameRate",int(val)),1,100],
         ["crf","Video Quality",project.config["crf"],lambda val:project.setConfig("crf",int(val)),1,51],
-        ["thread count","",project.config["threadCount"],lambda val:project.setConfig("threadCount",int(val)),1,64],
+        ["thread count","",project.config["threadCount"],lambda val:project.setConfig("threadCount",int(val)),2,64],
         ["max RAM (GB)","THIS IS AN ESTIMATE",project.config["maxRAM"],lambda val:project.setConfig("maxRAM",int(val)),1,64],
         ["db floor","Percentage of values considered '0'",project.config["dbPercentileFloor"],lambda val:project.setConfig("dbPercentileFloor",int(val)) ,0,100],
         ["db ceiling","Percentage of values considered '100'",project.config["dbPercentileCeiling"],lambda val:project.setConfig("dbPercentileCeiling",int(val)),0,100],
