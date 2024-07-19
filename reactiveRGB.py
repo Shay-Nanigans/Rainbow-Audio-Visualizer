@@ -70,6 +70,17 @@ class ReactiveRGB:
     def loadConfig(self):
         with open("config.txt") as f:
             self.config = yaml.safe_load(f)
+        with open("defaultconfig.txt") as f:
+            defaultconfig = yaml.safe_load(f)
+            for setting in defaultconfig:
+                if setting not in self.config:
+                    self.config[setting] = defaultconfig[setting]
+                if type(defaultconfig[setting]) is dict:
+                    for subsetting in defaultconfig[setting]:
+                        if subsetting not in self.config[setting]:
+                            self.config[setting][subsetting] = defaultconfig[setting][subsetting]
+
+            
 
     def saveConfig(self):
         with open("config.txt", "w") as f:
@@ -117,10 +128,24 @@ class ReactiveRGB:
         self.layercounter=data["layercounter"]
         self.config=data["config"]
         self.setBackground(self.backgroundFile)
+        
+        with open("defaultconfig.txt") as f:
+            defaultconfig = yaml.safe_load(f)
+            for setting in defaultconfig:
+                if setting not in self.config:
+                    self.config[setting] = defaultconfig[setting]
+                if type(defaultconfig[setting]) is dict:
+                    for subsetting in defaultconfig[setting]:
+                        if subsetting not in self.config[setting]:
+                            self.config[setting][subsetting] = defaultconfig[setting][subsetting]
+            for layer in self.layers:
+                for setting in defaultconfig['defaultlayer']:
+                    if setting not in self.layers[layer].config:
+                        self.layers[layer].config[setting]=defaultconfig['defaultlayer'][setting]
 
     def cleanup(self):
         for layer in self.layers:
-            layer.cleanup()
+            self.layers[layer].cleanup()
 
 class RainbowLayer():
     layerID:int = None
@@ -470,6 +495,9 @@ def preview(project:ReactiveRGB):
     processFrame(project,Frame(hue=170)).save("rainbowoutput3.png")
 
 def render(project:ReactiveRGB):
+    print(project.config['testval'])
+    for layer in project.layers:
+        print(project.layers[layer].config['fish'])
     t =time.time_ns()
     p = Pool(4)
 
