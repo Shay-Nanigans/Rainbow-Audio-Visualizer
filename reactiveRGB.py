@@ -495,9 +495,6 @@ def preview(project:ReactiveRGB):
     processFrame(project,Frame(hue=170)).save("rainbowoutput3.png")
 
 def render(project:ReactiveRGB):
-    print(project.config['testval'])
-    for layer in project.layers:
-        print(project.layers[layer].config['fish'])
     t =time.time_ns()
     p = Pool(4)
 
