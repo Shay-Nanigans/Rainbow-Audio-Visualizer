@@ -693,6 +693,24 @@ def destroyLayer(ui, project, layerID):
     project.layers.pop(layerID)
     refreshUI(ui, project)
 
+def moveLayer(ui, project, layerID):
+    keyorder = list(project.layers.keys())
+    neworder = []
+    if not keyorder[0]==layerID:
+        for i in range(len(keyorder)):
+            if i+1 < len(keyorder):
+                if keyorder[i+1]==layerID:
+                    neworder.append(layerID)
+                    neworder.append(keyorder[i])
+                    continue
+            if keyorder[i]!=layerID:
+                neworder.append(keyorder[i])
+        newdict = {}
+        for k in neworder:
+            newdict[k] = project.layers[k]
+        project.layers = newdict
+    refreshUI(ui, project)
+
 def rainbowLayerSettings(project, k):
     layerui = tk.Tk()
 
@@ -842,9 +860,11 @@ def populateUI(ui, project):
         layerbuttons[i].append(tk.Label(ui, text=project.layers[k].imgFile))
         layerbuttons[i].append(tk.Button(ui, text="EDIT", command=lambda k=k:rainbowLayerSettings(project, k)))
         layerbuttons[i].append(tk.Button(ui, text="DELETE", command=lambda k=k:destroyLayer(ui, project,k)))
+        layerbuttons[i].append(tk.Button(ui, text="Move Up", command=lambda k=k:moveLayer(ui, project,k)))
         layerbuttons[i][0].grid(row = i+4, column = 7)
         layerbuttons[i][1].grid(row = i+4, column = 8)
         layerbuttons[i][2].grid(row = i+4, column = 9)
+        layerbuttons[i][3].grid(row = i+4, column = 10)
         i+=1
     addLayerButton = tk.Button(ui, text='add layer', command=lambda:newLayer(ui, project))
     addLayerButton.grid(row = i+4, column = 7)
